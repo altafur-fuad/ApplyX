@@ -16,8 +16,6 @@ values (
 -- Storage RLS Policies
 -- =========================
 
--- Enable RLS for the objects table if not already enabled
-alter table storage.objects enable row level security;
 
 -- Only authenticated users can upload to their own user-specific folder
 drop policy if exists documents_insert_own on storage.objects;
