@@ -43,8 +43,12 @@ class OpportunityResultsScreen extends ConsumerWidget {
               );
             }
 
-            final recommended = opportunities.where((o) => o.matchLevel == MatchLevel.strong).toList();
-            final needsReview = opportunities.where((o) => o.matchLevel == MatchLevel.review).toList();
+            final recommended = opportunities
+                .where((o) => o.matchLevel == MatchLevel.strong)
+                .toList();
+            final needsReview = opportunities
+                .where((o) => o.matchLevel == MatchLevel.review)
+                .toList();
 
             return CustomScrollView(
               slivers: [
@@ -90,19 +94,38 @@ class OpportunityResultsScreen extends ConsumerWidget {
 
                 if (recommended.isNotEmpty) ...[
                   _sectionHeader('Recommended'),
-                  ...recommended.map((opp) => _opportunityCard(context, opp, AppColors.success, 'Strong Match')),
-                  const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+                  ...recommended.map(
+                    (opp) => _opportunityCard(
+                      context,
+                      opp,
+                      AppColors.success,
+                      'Strong Match',
+                    ),
+                  ),
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: AppSpacing.xl),
+                  ),
                 ],
 
                 if (needsReview.isNotEmpty) ...[
                   _sectionHeader('Needs Review'),
-                  ...needsReview.map((opp) => _opportunityCard(context, opp, AppColors.warning, 'Needs Review')),
-                  const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.section)),
+                  ...needsReview.map(
+                    (opp) => _opportunityCard(
+                      context,
+                      opp,
+                      AppColors.warning,
+                      'Needs Review',
+                    ),
+                  ),
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: AppSpacing.section),
+                  ),
                 ],
               ],
             );
           },
-          loading: () => const AppLoadingState(message: 'Loading opportunities...'),
+          loading: () =>
+              const AppLoadingState(message: 'Loading opportunities...'),
           error: (error, stack) => AppErrorState(
             message: 'Couldn\'t load opportunities.',
             onRetry: () => ref.refresh(opportunitiesProvider),
@@ -141,7 +164,8 @@ class OpportunityResultsScreen extends ConsumerWidget {
           AppSpacing.md,
         ),
         child: SurfaceCard(
-          onTap: () => context.push('${AppRoutes.opportunityDetail}/${opportunity.id}'),
+          onTap: () =>
+              context.push('${AppRoutes.opportunityDetail}/${opportunity.id}'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -164,7 +188,10 @@ class OpportunityResultsScreen extends ConsumerWidget {
               _infoRow(Icons.location_on_outlined, opportunity.location),
               const SizedBox(height: 6),
               if (opportunity.deadline != null)
-                _infoRow(Icons.calendar_today_outlined, 'Deadline: ${opportunity.deadline}'),
+                _infoRow(
+                  Icons.calendar_today_outlined,
+                  'Deadline: ${opportunity.deadline}',
+                ),
               const SizedBox(height: AppSpacing.md),
               Container(
                 padding: const EdgeInsets.all(AppSpacing.md),

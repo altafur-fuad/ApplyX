@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/data/auth_repository.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -11,11 +13,11 @@ import '../../../core/widgets/surface_card.dart';
 /// design.md § 6.13:
 /// Sections: Notifications, AI preferences, Privacy,
 /// Connected accounts, Data export/delete, About.
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -59,17 +61,9 @@ class SettingsScreen extends StatelessWidget {
             SurfaceCard(
               child: Column(
                 children: [
-                  _settingsRow(
-                    Icons.shield_outlined,
-                    'Privacy',
-                    onTap: () {},
-                  ),
+                  _settingsRow(Icons.shield_outlined, 'Privacy', onTap: () {}),
                   const Divider(height: 1),
-                  _settingsRow(
-                    Icons.link,
-                    'Connected Accounts',
-                    onTap: () {},
-                  ),
+                  _settingsRow(Icons.link, 'Connected Accounts', onTap: () {}),
                   const Divider(height: 1),
                   _settingsRow(
                     Icons.download_outlined,
@@ -97,10 +91,7 @@ class SettingsScreen extends StatelessWidget {
                   _settingsRow(
                     Icons.info_outline,
                     'About ApplyX',
-                    trailing: Text(
-                      'v1.0.0',
-                      style: AppTypography.caption(),
-                    ),
+                    trailing: Text('v1.0.0', style: AppTypography.caption()),
                     onTap: () {},
                   ),
                   const Divider(height: 1),
@@ -127,8 +118,8 @@ class SettingsScreen extends StatelessWidget {
                 Icons.logout,
                 'Sign Out',
                 textColor: AppColors.danger,
-                onTap: () {
-                  // TODO: Connect to auth service
+                onTap: () async {
+                  await ref.read(authRepositoryProvider).signOut();
                 },
               ),
             ),
@@ -157,11 +148,7 @@ class SettingsScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 14),
         child: Row(
           children: [
-            Icon(
-              icon,
-              size: 20,
-              color: textColor ?? AppColors.textSecondary,
-            ),
+            Icon(icon, size: 20, color: textColor ?? AppColors.textSecondary),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(

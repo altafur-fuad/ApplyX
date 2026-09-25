@@ -47,7 +47,8 @@ class ApplicationTrackerScreen extends ConsumerWidget {
                 vertical: AppSpacing.lg,
               ),
               itemCount: applications.length,
-              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+              separatorBuilder: (_, __) =>
+                  const SizedBox(height: AppSpacing.md),
               itemBuilder: (context, index) {
                 final app = applications[index];
                 return _ApplicationCard(
@@ -62,7 +63,8 @@ class ApplicationTrackerScreen extends ConsumerWidget {
               },
             );
           },
-          loading: () => const AppLoadingState(message: 'Loading applications...'),
+          loading: () =>
+              const AppLoadingState(message: 'Loading applications...'),
           error: (error, stack) => AppErrorState(
             message: 'Couldn\'t load applications.',
             onRetry: () => ref.refresh(applicationsProvider),
@@ -74,15 +76,24 @@ class ApplicationTrackerScreen extends ConsumerWidget {
 
   String _formatStatus(ApplicationStatus status) {
     switch (status) {
-      case ApplicationStatus.saved: return 'Saved';
-      case ApplicationStatus.preparing: return 'Preparing';
-      case ApplicationStatus.readyForReview: return 'Ready for review';
-      case ApplicationStatus.submitted: return 'Submitted';
-      case ApplicationStatus.underReview: return 'Under Review';
-      case ApplicationStatus.interview: return 'Interview';
-      case ApplicationStatus.rejected: return 'Rejected';
-      case ApplicationStatus.offer: return 'Offer';
-      case ApplicationStatus.withdrawn: return 'Withdrawn';
+      case ApplicationStatus.saved:
+        return 'Saved';
+      case ApplicationStatus.preparing:
+        return 'Preparing';
+      case ApplicationStatus.readyForReview:
+        return 'Ready for review';
+      case ApplicationStatus.submitted:
+        return 'Submitted';
+      case ApplicationStatus.underReview:
+        return 'Under Review';
+      case ApplicationStatus.interview:
+        return 'Interview';
+      case ApplicationStatus.rejected:
+        return 'Rejected';
+      case ApplicationStatus.offer:
+        return 'Offer';
+      case ApplicationStatus.withdrawn:
+        return 'Withdrawn';
     }
   }
 

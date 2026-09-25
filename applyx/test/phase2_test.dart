@@ -11,16 +11,16 @@ import 'package:applyx/features/goals/presentation/providers/goal_provider.dart'
 import 'package:applyx/core/widgets/app_states.dart';
 
 void main() {
-  testWidgets('OpportunityResultsScreen shows loading then empty state', (WidgetTester tester) async {
+  testWidgets('OpportunityResultsScreen shows loading then empty state', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           opportunitiesProvider.overrideWith((ref) async => <Opportunity>[]),
           activeGoalProvider.overrideWith((ref) async => null),
         ],
-        child: const MaterialApp(
-          home: OpportunityResultsScreen(),
-        ),
+        child: const MaterialApp(home: OpportunityResultsScreen()),
       ),
     );
 
@@ -33,16 +33,18 @@ void main() {
     expect(find.text('No opportunities found'), findsOneWidget);
   });
 
-  testWidgets('OpportunityResultsScreen shows error state', (WidgetTester tester) async {
+  testWidgets('OpportunityResultsScreen shows error state', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          opportunitiesProvider.overrideWith((ref) async => throw Exception('error')),
+          opportunitiesProvider.overrideWith(
+            (ref) async => throw Exception('error'),
+          ),
           activeGoalProvider.overrideWith((ref) async => null),
         ],
-        child: const MaterialApp(
-          home: OpportunityResultsScreen(),
-        ),
+        child: const MaterialApp(home: OpportunityResultsScreen()),
       ),
     );
 

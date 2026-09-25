@@ -27,14 +27,14 @@ class Opportunity extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        title,
-        organization,
-        location,
-        deadline,
-        reason,
-        matchLevel,
-        sourceUrl,
-        fetchedAt,
-      ];
+    id,
+    title,
+    organization,
+    location,
+    deadline,
+    reason,
+    matchLevel,
+    sourceUrl,
+    fetchedAt,
+  ];
 }

@@ -33,12 +33,12 @@ class Application extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        opportunityId,
-        status,
-        title,
-        organization,
-        deadline,
-        deadlineUrgent,
-      ];
+    id,
+    opportunityId,
+    status,
+    title,
+    organization,
+    deadline,
+    deadlineUrgent,
+  ];
 }

@@ -52,10 +52,7 @@ class AppEmptyState extends StatelessWidget {
             ],
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: AppSpacing.xl),
-              TextButton(
-                onPressed: onAction,
-                child: Text(actionLabel!),
-              ),
+              TextButton(onPressed: onAction, child: Text(actionLabel!)),
             ],
           ],
         ),
@@ -66,11 +63,7 @@ class AppEmptyState extends StatelessWidget {
 
 /// Error state — shown when something goes wrong.
 class AppErrorState extends StatelessWidget {
-  const AppErrorState({
-    super.key,
-    required this.message,
-    this.onRetry,
-  });
+  const AppErrorState({super.key, required this.message, this.onRetry});
 
   final String message;
   final VoidCallback? onRetry;

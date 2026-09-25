@@ -1,4 +1,5 @@
 import '../domain/opportunity.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 abstract class OpportunityRepository {
   Future<List<Opportunity>> getOpportunities();
@@ -56,5 +57,54 @@ class MockOpportunityRepository implements OpportunityRepository {
     } catch (_) {
       return null;
     }
+  }
+}
+
+class SupabaseOpportunityRepository implements OpportunityRepository {
+  final SupabaseClient _supabase;
+
+  SupabaseOpportunityRepository(this._supabase);
+
+  @override
+  Future<List<Opportunity>> getOpportunities() async {
+    final response = await _supabase
+        .from('opportunities')
+        .select()
+        .order('fetched_at', ascending: false)
+        .limit(20);
+
+    return (response as List).map((data) => _mapOpportunity(data)).toList();
+  }
+
+  @override
+  Future<Opportunity?> getOpportunityById(String id) async {
+    final response = await _supabase
+        .from('opportunities')
+        .select()
+        .eq('id', id)
+        .maybeSingle();
+
+    if (response == null) return null;
+    return _mapOpportunity(response);
+  }
+
+  Opportunity _mapOpportunity(Map<String, dynamic> data) {
+    String deadlineStr = '';
+    if (data['deadline'] != null) {
+      final deadline = DateTime.parse(data['deadline']);
+      deadlineStr = '${deadline.day}/${deadline.month}/${deadline.year}';
+    }
+
+    return Opportunity(
+      id: data['id'],
+      title: data['title'],
+      organization: data['organization'],
+      location: data['location'] ?? 'Unknown',
+      deadline: deadlineStr,
+      reason: data['description'] ?? '',
+      matchLevel: MatchLevel.review, // Default for now
+      sourceUrl: data['source_url'] ?? '',
+      fetchedAt: DateTime.parse(data['fetched_at']),
+    );
   }
 }

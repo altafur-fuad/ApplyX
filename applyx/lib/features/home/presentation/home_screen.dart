@@ -58,8 +58,10 @@ class HomeScreen extends ConsumerWidget {
                               '${profile.fullName.split(' ').first} 👋',
                               style: AppTypography.h2(),
                             ),
-                            loading: () => Text('Loading...', style: AppTypography.h2()),
-                            error: (_, __) => Text('User 👋', style: AppTypography.h2()),
+                            loading: () =>
+                                Text('Loading...', style: AppTypography.h2()),
+                            error: (_, __) =>
+                                Text('User 👋', style: AppTypography.h2()),
                           ),
                         ],
                       ),
@@ -71,11 +73,16 @@ class HomeScreen extends ConsumerWidget {
                         backgroundColor: AppColors.surfaceElevated,
                         child: profileAsync.when(
                           data: (profile) => Text(
-                            profile.fullName.isNotEmpty ? profile.fullName[0].toUpperCase() : '?',
+                            profile.fullName.isNotEmpty
+                                ? profile.fullName[0].toUpperCase()
+                                : '?',
                             style: AppTypography.h3(color: AppColors.primary),
                           ),
                           loading: () => const CircularProgressIndicator(),
-                          error: (_, __) => Text('?', style: AppTypography.h3(color: AppColors.primary)),
+                          error: (_, __) => Text(
+                            '?',
+                            style: AppTypography.h3(color: AppColors.primary),
+                          ),
                         ),
                       ),
                     ),
@@ -98,10 +105,7 @@ class HomeScreen extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'No Active Goal',
-                              style: AppTypography.h3(),
-                            ),
+                            Text('No Active Goal', style: AppTypography.h3()),
                             const SizedBox(height: AppSpacing.sm),
                             Text(
                               'Create your first goal and let ApplyX plan the next steps.',
@@ -136,10 +140,7 @@ class HomeScreen extends ConsumerWidget {
                             ],
                           ),
                           const SizedBox(height: AppSpacing.md),
-                          Text(
-                            goal.title,
-                            style: AppTypography.h3(),
-                          ),
+                          Text(goal.title, style: AppTypography.h3()),
                           const SizedBox(height: AppSpacing.sm),
                           Text(
                             'Checking eligibility for 6 opportunities...',
@@ -150,7 +151,8 @@ class HomeScreen extends ConsumerWidget {
                     );
                   },
                   loading: () => const AppLoadingState(),
-                  error: (_, __) => const AppErrorState(message: 'Error loading goal'),
+                  error: (_, __) =>
+                      const AppErrorState(message: 'Error loading goal'),
                 ),
               ),
             ),
@@ -206,10 +208,13 @@ class HomeScreen extends ConsumerWidget {
                   children: [
                     Text('Recent Opportunities', style: AppTypography.h3()),
                     TextButton(
-                      onPressed: () => context.push(AppRoutes.opportunityResults),
+                      onPressed: () =>
+                          context.push(AppRoutes.opportunityResults),
                       child: Text(
                         'See all',
-                        style: AppTypography.bodySmall(color: AppColors.primary),
+                        style: AppTypography.bodySmall(
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                   ],
@@ -235,28 +240,33 @@ class HomeScreen extends ConsumerWidget {
                     horizontal: AppSpacing.pagePadding,
                   ),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final opp = recentOps[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                          child: _OpportunityMiniCard(
-                            id: opp.id,
-                            title: opp.title,
-                            org: opp.organization,
-                            location: opp.location,
-                            match: opp.matchLevel == MatchLevel.strong ? 'Strong Match' : 'Needs Review',
-                            matchColor: opp.matchLevel == MatchLevel.strong ? AppColors.success : AppColors.warning,
-                          ),
-                        );
-                      },
-                      childCount: recentOps.length,
-                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final opp = recentOps[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                        child: _OpportunityMiniCard(
+                          id: opp.id,
+                          title: opp.title,
+                          org: opp.organization,
+                          location: opp.location,
+                          match: opp.matchLevel == MatchLevel.strong
+                              ? 'Strong Match'
+                              : 'Needs Review',
+                          matchColor: opp.matchLevel == MatchLevel.strong
+                              ? AppColors.success
+                              : AppColors.warning,
+                        ),
+                      );
+                    }, childCount: recentOps.length),
                   ),
                 );
               },
-              loading: () => const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator())),
-              error: (_, __) => const SliverToBoxAdapter(child: Text('Error loading opportunities')),
+              loading: () => const SliverToBoxAdapter(
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (_, __) => const SliverToBoxAdapter(
+                child: Text('Error loading opportunities'),
+              ),
             ),
 
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
@@ -273,7 +283,9 @@ class HomeScreen extends ConsumerWidget {
 
             applicationsAsync.when(
               data: (applications) {
-                final urgentApp = applications.where((a) => a.deadlineUrgent).firstOrNull;
+                final urgentApp = applications
+                    .where((a) => a.deadlineUrgent)
+                    .firstOrNull;
 
                 if (urgentApp == null) {
                   return const SliverToBoxAdapter(
@@ -334,7 +346,9 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 );
               },
-              loading: () => const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator())),
+              loading: () => const SliverToBoxAdapter(
+                child: Center(child: CircularProgressIndicator()),
+              ),
               error: (_, __) => const SliverToBoxAdapter(child: Text('Error')),
             ),
           ],

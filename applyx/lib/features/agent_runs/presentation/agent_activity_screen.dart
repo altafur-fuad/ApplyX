@@ -19,7 +19,8 @@ class AgentActivityScreen extends ConsumerStatefulWidget {
   const AgentActivityScreen({super.key});
 
   @override
-  ConsumerState<AgentActivityScreen> createState() => _AgentActivityScreenState();
+  ConsumerState<AgentActivityScreen> createState() =>
+      _AgentActivityScreenState();
 }
 
 class _AgentActivityScreenState extends ConsumerState<AgentActivityScreen> {
@@ -32,22 +33,20 @@ class _AgentActivityScreenState extends ConsumerState<AgentActivityScreen> {
   }
 
   void _startSimulation() {
-    _simulationTimer = Timer.periodic(
-      const Duration(seconds: 3),
-      (timer) {
-        if (!mounted) {
-          timer.cancel();
-          return;
-        }
+    _simulationTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
 
-        ref.read(agentRunProvider.notifier).simulateProgress();
-        
-        final state = ref.read(agentRunProvider);
-        if (state.value?.status == AgentStatus.completed || state.value?.status == AgentStatus.failed) {
-          timer.cancel();
-        }
-      },
-    );
+      ref.read(agentRunProvider.notifier).simulateProgress();
+
+      final state = ref.read(agentRunProvider);
+      if (state.value?.status == AgentStatus.completed ||
+          state.value?.status == AgentStatus.failed) {
+        timer.cancel();
+      }
+    });
   }
 
   @override
@@ -139,13 +138,15 @@ class _AgentActivityScreenState extends ConsumerState<AgentActivityScreen> {
                     ),
                     child: AppPrimaryButton(
                       label: 'View Results',
-                      onPressed: () => context.push(AppRoutes.opportunityResults),
+                      onPressed: () =>
+                          context.push(AppRoutes.opportunityResults),
                     ),
                   ),
               ],
             );
           },
-          loading: () => const AppLoadingState(message: 'Initializing Agent...'),
+          loading: () =>
+              const AppLoadingState(message: 'Initializing Agent...'),
           error: (error, stack) => AppErrorState(
             message: 'Failed to connect to agent.',
             onRetry: () => ref.refresh(agentRunProvider),
@@ -157,10 +158,7 @@ class _AgentActivityScreenState extends ConsumerState<AgentActivityScreen> {
 }
 
 class _AgentStepTile extends StatelessWidget {
-  const _AgentStepTile({
-    required this.step,
-    required this.isLast,
-  });
+  const _AgentStepTile({required this.step, required this.isLast});
 
   final AgentStep step;
   final bool isLast;
@@ -210,12 +208,7 @@ class _AgentStepTile extends StatelessWidget {
               children: [
                 Icon(_icon, color: _dotColor, size: 22),
                 if (!isLast)
-                  Expanded(
-                    child: Container(
-                      width: 2,
-                      color: AppColors.border,
-                    ),
-                  ),
+                  Expanded(child: Container(width: 2, color: AppColors.border)),
               ],
             ),
           ),
@@ -238,17 +231,15 @@ class _AgentStepTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    step.description,
-                    style: AppTypography.caption(),
-                  ),
+                  Text(step.description, style: AppTypography.caption()),
                   if (step.status == AgentStatus.running) ...[
                     const SizedBox(height: AppSpacing.sm),
                     SizedBox(
                       width: 120,
                       child: LinearProgressIndicator(
-                        backgroundColor:
-                            AppColors.aiAccent.withValues(alpha: 0.15),
+                        backgroundColor: AppColors.aiAccent.withValues(
+                          alpha: 0.15,
+                        ),
                         color: AppColors.aiAccent,
                         minHeight: 3,
                         borderRadius: BorderRadius.circular(2),

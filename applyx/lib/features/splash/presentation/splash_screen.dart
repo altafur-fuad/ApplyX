@@ -83,10 +83,7 @@ class _SplashScreenState extends State<SplashScreen>
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [
-                        AppColors.primary,
-                        Color(0xFF5B3FD9),
-                      ],
+                      colors: [AppColors.primary, Color(0xFF5B3FD9)],
                     ),
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -103,10 +100,7 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                 ),
                 const SizedBox(height: 20),
-                Text(
-                  'ApplyX',
-                  style: AppTypography.h1(),
-                ),
+                Text('ApplyX', style: AppTypography.h1()),
                 const SizedBox(height: 8),
                 Text(
                   'Your AI opportunity assistant',
