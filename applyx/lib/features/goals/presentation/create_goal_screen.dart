@@ -118,8 +118,9 @@ class _CreateGoalScreenState extends State<CreateGoalScreen> {
                 child: AppPrimaryButton(
                   label: 'Start Agent',
                   icon: Icons.auto_awesome,
-                  onPressed:
-                      _goalController.text.trim().isEmpty ? null : _onStartAgent,
+                  onPressed: _goalController.text.trim().isEmpty
+                      ? null
+                      : _onStartAgent,
                 ),
               ),
             ],

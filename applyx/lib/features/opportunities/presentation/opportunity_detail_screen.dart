@@ -72,8 +72,12 @@ class OpportunityDetailScreen extends ConsumerWidget {
                               ),
                             ),
                             StatusChip(
-                              label: isStrongMatch ? 'Strong Match' : 'Needs Review',
-                              color: isStrongMatch ? AppColors.success : AppColors.warning,
+                              label: isStrongMatch
+                                  ? 'Strong Match'
+                                  : 'Needs Review',
+                              color: isStrongMatch
+                                  ? AppColors.success
+                                  : AppColors.warning,
                             ),
                           ],
                         ),
@@ -84,10 +88,19 @@ class OpportunityDetailScreen extends ConsumerWidget {
                           spacing: AppSpacing.lg,
                           runSpacing: AppSpacing.sm,
                           children: [
-                            _infoChip(Icons.business_outlined, opportunity.organization),
-                            _infoChip(Icons.location_on_outlined, opportunity.location),
+                            _infoChip(
+                              Icons.business_outlined,
+                              opportunity.organization,
+                            ),
+                            _infoChip(
+                              Icons.location_on_outlined,
+                              opportunity.location,
+                            ),
                             if (opportunity.deadline != null)
-                              _infoChip(Icons.calendar_today_outlined, opportunity.deadline!),
+                              _infoChip(
+                                Icons.calendar_today_outlined,
+                                opportunity.deadline!,
+                              ),
                           ],
                         ),
 
@@ -98,7 +111,9 @@ class OpportunityDetailScreen extends ConsumerWidget {
                         const SizedBox(height: AppSpacing.sm),
                         Text(
                           '${opportunity.organization} is looking for a motivated candidate to join their team. You will work on exciting projects and collaborate with experienced professionals.',
-                          style: AppTypography.body(color: AppColors.textSecondary),
+                          style: AppTypography.body(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
 
                         const SizedBox(height: AppSpacing.xl),
@@ -110,9 +125,7 @@ class OpportunityDetailScreen extends ConsumerWidget {
                           color: AppColors.surfaceElevated,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _matchRow(opportunity.reason),
-                            ],
+                            children: [_matchRow(opportunity.reason)],
                           ),
                         ),
 
@@ -166,9 +179,7 @@ class OpportunityDetailScreen extends ConsumerWidget {
                   ),
                   decoration: const BoxDecoration(
                     color: AppColors.surface,
-                    border: Border(
-                      top: BorderSide(color: AppColors.border),
-                    ),
+                    border: Border(top: BorderSide(color: AppColors.border)),
                   ),
                   child: AppPrimaryButton(
                     label: 'Prepare Application',
@@ -207,11 +218,7 @@ class OpportunityDetailScreen extends ConsumerWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(
-          Icons.auto_awesome,
-          size: 16,
-          color: AppColors.aiAccent,
-        ),
+        const Icon(Icons.auto_awesome, size: 16, color: AppColors.aiAccent),
         const SizedBox(width: 8),
         Expanded(
           child: Text(

@@ -51,7 +51,9 @@ class ProfileScreen extends ConsumerWidget {
                           radius: 40,
                           backgroundColor: AppColors.surfaceElevated,
                           child: Text(
-                            profile.fullName.isNotEmpty ? profile.fullName[0].toUpperCase() : '?',
+                            profile.fullName.isNotEmpty
+                                ? profile.fullName[0].toUpperCase()
+                                : '?',
                             style: AppTypography.h1(color: AppColors.primary),
                           ),
                         ),
@@ -108,7 +110,9 @@ class ProfileScreen extends ConsumerWidget {
                   Wrap(
                     spacing: AppSpacing.sm,
                     runSpacing: AppSpacing.sm,
-                    children: profile.skills.map((skill) => _SkillChip(skill)).toList(),
+                    children: profile.skills
+                        .map((skill) => _SkillChip(skill))
+                        .toList(),
                   ),
 
                   const SizedBox(height: AppSpacing.xxl),
@@ -116,10 +120,7 @@ class ProfileScreen extends ConsumerWidget {
                   _sectionTitle('Location'),
                   const SizedBox(height: AppSpacing.md),
                   SurfaceCard(
-                    child: Text(
-                      profile.location,
-                      style: AppTypography.body(),
-                    ),
+                    child: Text(profile.location, style: AppTypography.body()),
                   ),
 
                   const SizedBox(height: AppSpacing.xxl),
@@ -127,10 +128,7 @@ class ProfileScreen extends ConsumerWidget {
                   _sectionTitle('Bio'),
                   const SizedBox(height: AppSpacing.md),
                   SurfaceCard(
-                    child: Text(
-                      profile.bio,
-                      style: AppTypography.body(),
-                    ),
+                    child: Text(profile.bio, style: AppTypography.body()),
                   ),
 
                   const SizedBox(height: AppSpacing.section),
@@ -165,14 +163,9 @@ class _SkillChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
       ),
-      child: Text(
-        label,
-        style: AppTypography.label(color: AppColors.primary),
-      ),
+      child: Text(label, style: AppTypography.label(color: AppColors.primary)),
     );
   }
 }

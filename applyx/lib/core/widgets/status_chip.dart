@@ -26,34 +26,34 @@ class StatusChip extends StatelessWidget {
 
   /// Named constructors for standard agent states.
   factory StatusChip.queued() => const StatusChip(
-        label: 'Queued',
-        color: AppColors.agentQueued,
-        icon: Icons.schedule,
-      );
+    label: 'Queued',
+    color: AppColors.agentQueued,
+    icon: Icons.schedule,
+  );
 
   factory StatusChip.running() => const StatusChip(
-        label: 'Running',
-        color: AppColors.agentActive,
-        icon: Icons.sync,
-      );
+    label: 'Running',
+    color: AppColors.agentActive,
+    icon: Icons.sync,
+  );
 
   factory StatusChip.completed() => const StatusChip(
-        label: 'Completed',
-        color: AppColors.agentCompleted,
-        icon: Icons.check_circle_outline,
-      );
+    label: 'Completed',
+    color: AppColors.agentCompleted,
+    icon: Icons.check_circle_outline,
+  );
 
   factory StatusChip.approval() => const StatusChip(
-        label: 'Approval Required',
-        color: AppColors.agentApproval,
-        icon: Icons.front_hand_outlined,
-      );
+    label: 'Approval Required',
+    color: AppColors.agentApproval,
+    icon: Icons.front_hand_outlined,
+  );
 
   factory StatusChip.failed() => const StatusChip(
-        label: 'Failed',
-        color: AppColors.agentFailed,
-        icon: Icons.error_outline,
-      );
+    label: 'Failed',
+    color: AppColors.agentFailed,
+    icon: Icons.error_outline,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -62,10 +62,7 @@ class StatusChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(
-          color: color.withValues(alpha: 0.3),
-          width: 1,
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -74,10 +71,7 @@ class StatusChip extends StatelessWidget {
             Icon(icon, size: 14, color: color),
             const SizedBox(width: 6),
           ],
-          Text(
-            label,
-            style: AppTypography.label(color: color),
-          ),
+          Text(label, style: AppTypography.label(color: color)),
         ],
       ),
     );

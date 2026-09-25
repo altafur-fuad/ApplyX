@@ -9,23 +9,21 @@ import 'router.dart';
 ///
 /// Uses [ProviderScope] for Riverpod state management
 /// and [GoRouter] for declarative navigation.
-class ApplyXApp extends StatelessWidget {
+class ApplyXApp extends ConsumerWidget {
   const ApplyXApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // Lock status bar appearance for dark theme
     SystemChrome.setSystemUIOverlayStyle(
-      SystemUiOverlayStyle.light.copyWith(
-        statusBarColor: Colors.transparent,
-      ),
+      SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent),
     );
 
     return MaterialApp.router(
       title: 'ApplyX',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
-      routerConfig: appRouter,
+      routerConfig: ref.watch(routerProvider),
     );
   }
 }

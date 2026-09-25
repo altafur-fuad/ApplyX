@@ -32,19 +32,13 @@ class SurfaceCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: color ?? AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: borderColor ?? AppColors.border,
-          width: 1,
-        ),
+        border: Border.all(color: borderColor ?? AppColors.border, width: 1),
       ),
       child: child,
     );
 
     if (onTap != null) {
-      return GestureDetector(
-        onTap: onTap,
-        child: card,
-      );
+      return GestureDetector(onTap: onTap, child: card);
     }
 
     return card;

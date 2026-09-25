@@ -186,11 +186,7 @@ class _OnboardingPageView extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(32),
             ),
-            child: Icon(
-              page.icon,
-              size: 52,
-              color: AppColors.primary,
-            ),
+            child: Icon(page.icon, size: 52, color: AppColors.primary),
           ),
           const SizedBox(height: AppSpacing.xxl),
           Text(

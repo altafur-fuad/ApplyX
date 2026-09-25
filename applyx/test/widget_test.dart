@@ -4,8 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:applyx/app/app.dart';
 
 void main() {
-  testWidgets('App renders splash screen with brand elements',
-      (WidgetTester tester) async {
+  testWidgets('App renders splash screen with brand elements', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const ProviderScope(child: ApplyXApp()));
 
     // Splash should show the brand name and tagline
@@ -17,8 +18,9 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('Splash auto-navigates to onboarding after delay',
-      (WidgetTester tester) async {
+  testWidgets('Splash auto-navigates to onboarding after delay', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const ProviderScope(child: ApplyXApp()));
 
     // Advance past splash delay (2200ms)
@@ -29,8 +31,9 @@ void main() {
     expect(find.text('Define your goal'), findsOneWidget);
   });
 
-  testWidgets('Onboarding skip navigates to login',
-      (WidgetTester tester) async {
+  testWidgets('Onboarding skip navigates to login', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const ProviderScope(child: ApplyXApp()));
 
     // Skip past splash

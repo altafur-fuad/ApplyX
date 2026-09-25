@@ -104,7 +104,10 @@ class ApprovalScreen extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _previewRow('Resume', 'Tailored for ${opportunity.title} role'),
+                              _previewRow(
+                                'Resume',
+                                'Tailored for ${opportunity.title} role',
+                              ),
                               const Divider(height: AppSpacing.xl),
                               _previewRow(
                                 'Cover Letter',
@@ -172,9 +175,7 @@ class ApprovalScreen extends ConsumerWidget {
                   ),
                   decoration: const BoxDecoration(
                     color: AppColors.surface,
-                    border: Border(
-                      top: BorderSide(color: AppColors.border),
-                    ),
+                    border: Border(top: BorderSide(color: AppColors.border)),
                   ),
                   child: Column(
                     children: [
@@ -218,12 +219,7 @@ class ApprovalScreen extends ConsumerWidget {
             children: [
               Icon(icon, size: 20, color: AppColors.textSecondary),
               const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Text(
-                  value,
-                  style: AppTypography.body(),
-                ),
-              ),
+              Expanded(child: Text(value, style: AppTypography.body())),
             ],
           ),
         ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../data/auth_repository.dart';
 
 import '../../../app/router.dart';
 import '../../../core/theme/app_colors.dart';
@@ -8,14 +10,14 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_button.dart';
 
 /// Signup screen — user registration.
-class SignupScreen extends StatefulWidget {
+class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
 
   @override
-  State<SignupScreen> createState() => _SignupScreenState();
+  ConsumerState<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> {
+class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -35,20 +37,33 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  void _onSignup() {
+  Future<void> _onSignup() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
     setState(() => _isLoading = true);
 
-    // Simulate network delay
-    Future.delayed(const Duration(milliseconds: 800), () {
+    try {
+      await ref
+          .read(authRepositoryProvider)
+          .signUp(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+            fullName: _nameController.text.trim(),
+          );
+      // Navigation is handled by router based on auth state
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    } finally {
       if (mounted) {
         setState(() => _isLoading = false);
-        context.go(AppRoutes.home);
       }
-    });
+    }
   }
 
   @override
@@ -98,10 +113,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                 // Heading
                 Center(
-                  child: Text(
-                    'Create an account',
-                    style: AppTypography.h1(),
-                  ),
+                  child: Text('Create an account', style: AppTypography.h1()),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Center(
@@ -232,8 +244,10 @@ class _SignupScreenState extends State<SignupScreen> {
                         size: 20,
                       ),
                       onPressed: () {
-                        setState(() =>
-                            _obscureConfirmPassword = !_obscureConfirmPassword);
+                        setState(
+                          () => _obscureConfirmPassword =
+                              !_obscureConfirmPassword,
+                        );
                       },
                     ),
                   ),
@@ -281,7 +295,8 @@ class _SignupScreenState extends State<SignupScreen> {
                         child: Text(
                           'Sign In',
                           style: AppTypography.bodySmall(
-                              color: AppColors.primary),
+                            color: AppColors.primary,
+                          ),
                         ),
                       ),
                     ],
