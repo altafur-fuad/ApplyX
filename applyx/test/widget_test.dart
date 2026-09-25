@@ -1,30 +1,50 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:applyx/main.dart';
+import 'package:applyx/app/app.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('App renders splash screen with brand elements',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const ApplyXApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Splash should show the brand name and tagline
+    expect(find.text('ApplyX'), findsOneWidget);
+    expect(find.text('Your AI opportunity assistant'), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Pump past the splash timer so no pending timers remain
+    await tester.pump(const Duration(milliseconds: 2300));
+    await tester.pumpAndSettle();
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('Splash auto-navigates to onboarding after delay',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const ApplyXApp());
+
+    // Advance past splash delay (2200ms)
+    await tester.pump(const Duration(milliseconds: 2300));
+    await tester.pumpAndSettle();
+
+    // Should now be on onboarding — first page title
+    expect(find.text('Define your goal'), findsOneWidget);
+  });
+
+  testWidgets('Onboarding skip navigates to login',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const ApplyXApp());
+
+    // Skip past splash
+    await tester.pump(const Duration(milliseconds: 2300));
+    await tester.pumpAndSettle();
+
+    // Verify on onboarding
+    expect(find.text('Define your goal'), findsOneWidget);
+
+    // Tap "Skip" to go to login
+    await tester.tap(find.text('Skip'));
+    await tester.pumpAndSettle();
+
+    // Should be on login
+    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.text('Sign In'), findsOneWidget);
   });
 }
