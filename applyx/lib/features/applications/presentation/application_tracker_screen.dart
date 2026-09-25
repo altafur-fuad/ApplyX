@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
@@ -7,18 +8,17 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/status_chip.dart';
 import '../../../core/widgets/surface_card.dart';
+import '../../../core/widgets/app_states.dart';
+import 'providers/application_provider.dart';
+import '../domain/application.dart';
 
-/// Application Tracker screen.
-///
-/// design.md § 6.11:
-/// Use timeline/status chips instead of only tables.
-/// PRD § 7.11 statuses: saved, preparing, ready_for_review,
-/// submitted, under_review, interview, rejected, offer, withdrawn.
-class ApplicationTrackerScreen extends StatelessWidget {
+class ApplicationTrackerScreen extends ConsumerWidget {
   const ApplicationTrackerScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final applicationsAsync = ref.watch(applicationsProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -29,56 +29,86 @@ class ApplicationTrackerScreen extends StatelessWidget {
         ),
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.pagePadding,
-            vertical: AppSpacing.lg,
+        child: applicationsAsync.when(
+          data: (applications) {
+            if (applications.isEmpty) {
+              return AppEmptyState(
+                icon: Icons.list_alt,
+                title: 'No active applications',
+                message: 'No active applications yet.',
+                actionLabel: 'Go Back',
+                onAction: () => context.pop(),
+              );
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.pagePadding,
+                vertical: AppSpacing.lg,
+              ),
+              itemCount: applications.length,
+              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+              itemBuilder: (context, index) {
+                final app = applications[index];
+                return _ApplicationCard(
+                  oppId: app.opportunityId,
+                  title: app.title,
+                  org: app.organization,
+                  status: _formatStatus(app.status),
+                  statusColor: _getStatusColor(app.status),
+                  deadline: app.deadline,
+                  deadlineUrgent: app.deadlineUrgent,
+                );
+              },
+            );
+          },
+          loading: () => const AppLoadingState(message: 'Loading applications...'),
+          error: (error, stack) => AppErrorState(
+            message: 'Couldn\'t load applications.',
+            onRetry: () => ref.refresh(applicationsProvider),
           ),
-          children: const [
-            _ApplicationCard(
-              title: 'Flutter Developer Intern',
-              org: 'TechCorp Inc.',
-              status: 'Ready for review',
-              statusColor: AppColors.warning,
-              deadline: 'Deadline in 3 days',
-              deadlineUrgent: true,
-            ),
-            SizedBox(height: AppSpacing.md),
-            _ApplicationCard(
-              title: 'Mobile App Engineering Intern',
-              org: 'StartupAI',
-              status: 'Preparing',
-              statusColor: AppColors.aiAccent,
-              deadline: 'Deadline in 12 days',
-              deadlineUrgent: false,
-            ),
-            SizedBox(height: AppSpacing.md),
-            _ApplicationCard(
-              title: 'Mobile App Research Assistant',
-              org: 'University of Dhaka',
-              status: 'Submitted',
-              statusColor: AppColors.success,
-              deadline: 'Follow-up next week',
-              deadlineUrgent: false,
-            ),
-            SizedBox(height: AppSpacing.md),
-            _ApplicationCard(
-              title: 'Junior Android Developer',
-              org: 'LocalTech BD',
-              status: 'Rejected',
-              statusColor: AppColors.danger,
-              deadline: '',
-              deadlineUrgent: false,
-            ),
-          ],
         ),
       ),
     );
+  }
+
+  String _formatStatus(ApplicationStatus status) {
+    switch (status) {
+      case ApplicationStatus.saved: return 'Saved';
+      case ApplicationStatus.preparing: return 'Preparing';
+      case ApplicationStatus.readyForReview: return 'Ready for review';
+      case ApplicationStatus.submitted: return 'Submitted';
+      case ApplicationStatus.underReview: return 'Under Review';
+      case ApplicationStatus.interview: return 'Interview';
+      case ApplicationStatus.rejected: return 'Rejected';
+      case ApplicationStatus.offer: return 'Offer';
+      case ApplicationStatus.withdrawn: return 'Withdrawn';
+    }
+  }
+
+  Color _getStatusColor(ApplicationStatus status) {
+    switch (status) {
+      case ApplicationStatus.preparing:
+      case ApplicationStatus.underReview:
+        return AppColors.aiAccent;
+      case ApplicationStatus.readyForReview:
+        return AppColors.warning;
+      case ApplicationStatus.submitted:
+      case ApplicationStatus.interview:
+      case ApplicationStatus.offer:
+        return AppColors.success;
+      case ApplicationStatus.rejected:
+      case ApplicationStatus.withdrawn:
+        return AppColors.danger;
+      default:
+        return AppColors.textSecondary;
+    }
   }
 }
 
 class _ApplicationCard extends StatelessWidget {
   const _ApplicationCard({
+    required this.oppId,
     required this.title,
     required this.org,
     required this.status,
@@ -87,6 +117,7 @@ class _ApplicationCard extends StatelessWidget {
     required this.deadlineUrgent,
   });
 
+  final String oppId;
   final String title;
   final String org;
   final String status;
@@ -97,7 +128,7 @@ class _ApplicationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SurfaceCard(
-      onTap: () => context.push(AppRoutes.opportunityDetail),
+      onTap: () => context.push('${AppRoutes.opportunityDetail}/$oppId'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

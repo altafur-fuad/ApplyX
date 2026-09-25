@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
@@ -7,19 +8,25 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/surface_card.dart';
 import '../../../core/widgets/status_chip.dart';
+import '../../../core/widgets/app_states.dart';
 
-/// Home dashboard screen.
-///
-/// design.md § 6.4 hierarchy:
-/// Greeting → Active Goal / Quick Create → Agent Status
-/// → Top Opportunities → Application Deadlines
-///
-/// Uses mock data clearly separated for future backend integration.
-class HomeScreen extends StatelessWidget {
+import '../../profile/presentation/providers/profile_provider.dart';
+import '../../goals/presentation/providers/goal_provider.dart';
+import '../../opportunities/presentation/providers/opportunity_provider.dart';
+import '../../applications/presentation/providers/application_provider.dart';
+
+import '../../opportunities/domain/opportunity.dart';
+
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(profileProvider);
+    final activeGoalAsync = ref.watch(activeGoalProvider);
+    final opportunitiesAsync = ref.watch(opportunitiesProvider);
+    final applicationsAsync = ref.watch(applicationsProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -46,9 +53,13 @@ class HomeScreen extends StatelessWidget {
                             style: AppTypography.bodySmall(),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            'Altafur 👋',
-                            style: AppTypography.h2(),
+                          profileAsync.when(
+                            data: (profile) => Text(
+                              '${profile.fullName.split(' ').first} 👋',
+                              style: AppTypography.h2(),
+                            ),
+                            loading: () => Text('Loading...', style: AppTypography.h2()),
+                            error: (_, __) => Text('User 👋', style: AppTypography.h2()),
                           ),
                         ],
                       ),
@@ -58,9 +69,13 @@ class HomeScreen extends StatelessWidget {
                       child: CircleAvatar(
                         radius: 22,
                         backgroundColor: AppColors.surfaceElevated,
-                        child: Text(
-                          'A',
-                          style: AppTypography.h3(color: AppColors.primary),
+                        child: profileAsync.when(
+                          data: (profile) => Text(
+                            profile.fullName.isNotEmpty ? profile.fullName[0].toUpperCase() : '?',
+                            style: AppTypography.h3(color: AppColors.primary),
+                          ),
+                          loading: () => const CircularProgressIndicator(),
+                          error: (_, __) => Text('?', style: AppTypography.h3(color: AppColors.primary)),
                         ),
                       ),
                     ),
@@ -75,41 +90,67 @@ class HomeScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.pagePadding,
                 ),
-                child: SurfaceCard(
-                  onTap: () => context.push(AppRoutes.agentActivity),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.auto_awesome,
-                            color: AppColors.aiAccent,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Active Goal',
-                            style: AppTypography.label(
-                              color: AppColors.aiAccent,
+                child: activeGoalAsync.when(
+                  data: (goal) {
+                    if (goal == null) {
+                      return SurfaceCard(
+                        onTap: () => context.push(AppRoutes.createGoal),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'No Active Goal',
+                              style: AppTypography.h3(),
                             ),
+                            const SizedBox(height: AppSpacing.sm),
+                            Text(
+                              'Create your first goal and let ApplyX plan the next steps.',
+                              style: AppTypography.bodySmall(),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return SurfaceCard(
+                      onTap: () => context.push(AppRoutes.agentActivity),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.auto_awesome,
+                                color: AppColors.aiAccent,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Active Goal',
+                                style: AppTypography.label(
+                                  color: AppColors.aiAccent,
+                                ),
+                              ),
+                              const Spacer(),
+                              StatusChip.running(),
+                            ],
                           ),
-                          const Spacer(),
-                          StatusChip.running(),
+                          const SizedBox(height: AppSpacing.md),
+                          Text(
+                            goal.title,
+                            style: AppTypography.h3(),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            'Checking eligibility for 6 opportunities...',
+                            style: AppTypography.bodySmall(),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        'Find paid remote Flutter internships',
-                        style: AppTypography.h3(),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        'Checking eligibility for 6 opportunities...',
-                        style: AppTypography.bodySmall(),
-                      ),
-                    ],
-                  ),
+                    );
+                  },
+                  loading: () => const AppLoadingState(),
+                  error: (_, __) => const AppErrorState(message: 'Error loading goal'),
                 ),
               ),
             ),
@@ -136,8 +177,7 @@ class HomeScreen extends StatelessWidget {
                       child: _QuickActionButton(
                         icon: Icons.list_alt_outlined,
                         label: 'Tracker',
-                        onTap: () =>
-                            context.push(AppRoutes.applicationTracker),
+                        onTap: () => context.push(AppRoutes.applicationTracker),
                       ),
                     ),
                     const SizedBox(width: AppSpacing.md),
@@ -166,12 +206,10 @@ class HomeScreen extends StatelessWidget {
                   children: [
                     Text('Recent Opportunities', style: AppTypography.h3()),
                     TextButton(
-                      onPressed: () =>
-                          context.push(AppRoutes.opportunityResults),
+                      onPressed: () => context.push(AppRoutes.opportunityResults),
                       child: Text(
                         'See all',
-                        style:
-                            AppTypography.bodySmall(color: AppColors.primary),
+                        style: AppTypography.bodySmall(color: AppColors.primary),
                       ),
                     ),
                   ],
@@ -180,29 +218,45 @@ class HomeScreen extends StatelessWidget {
             ),
 
             // Mock opportunity cards
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.pagePadding,
-              ),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  const _OpportunityMiniCard(
-                    title: 'Flutter Developer Intern',
-                    org: 'TechCorp Inc.',
-                    location: 'Remote',
-                    match: 'Strong Match',
-                    matchColor: AppColors.success,
+            opportunitiesAsync.when(
+              data: (opportunities) {
+                if (opportunities.isEmpty) {
+                  return const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.all(AppSpacing.pagePadding),
+                      child: Text('No opportunities yet.'),
+                    ),
+                  );
+                }
+
+                final recentOps = opportunities.take(2).toList();
+                return SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.pagePadding,
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  const _OpportunityMiniCard(
-                    title: 'Mobile App Research Assistant',
-                    org: 'University of Dhaka',
-                    location: 'Hybrid',
-                    match: 'Needs Review',
-                    matchColor: AppColors.warning,
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final opp = recentOps[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                          child: _OpportunityMiniCard(
+                            id: opp.id,
+                            title: opp.title,
+                            org: opp.organization,
+                            location: opp.location,
+                            match: opp.matchLevel == MatchLevel.strong ? 'Strong Match' : 'Needs Review',
+                            matchColor: opp.matchLevel == MatchLevel.strong ? AppColors.success : AppColors.warning,
+                          ),
+                        );
+                      },
+                      childCount: recentOps.length,
+                    ),
                   ),
-                ]),
-              ),
+                );
+              },
+              loading: () => const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator())),
+              error: (_, __) => const SliverToBoxAdapter(child: Text('Error loading opportunities')),
             ),
 
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
@@ -217,54 +271,71 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
 
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.pagePadding,
-                  AppSpacing.md,
-                  AppSpacing.pagePadding,
-                  AppSpacing.section,
-                ),
-                child: SurfaceCard(
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 4,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: AppColors.warning,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Flutter Intern — TechCorp',
-                              style: AppTypography.body(),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+            applicationsAsync.when(
+              data: (applications) {
+                final urgentApp = applications.where((a) => a.deadlineUrgent).firstOrNull;
+
+                if (urgentApp == null) {
+                  return const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.all(AppSpacing.pagePadding),
+                      child: Text('No upcoming deadlines.'),
+                    ),
+                  );
+                }
+
+                return SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.pagePadding,
+                      AppSpacing.md,
+                      AppSpacing.pagePadding,
+                      AppSpacing.section,
+                    ),
+                    child: SurfaceCard(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: AppColors.warning,
+                              borderRadius: BorderRadius.circular(2),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Deadline in 3 days',
-                              style: AppTypography.caption(
-                                color: AppColors.warning,
-                              ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${urgentApp.title} — ${urgentApp.organization}',
+                                  style: AppTypography.body(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  urgentApp.deadline,
+                                  style: AppTypography.caption(
+                                    color: AppColors.warning,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right,
+                            color: AppColors.textSecondary,
+                          ),
+                        ],
                       ),
-                      const Icon(
-                        Icons.chevron_right,
-                        color: AppColors.textSecondary,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
+              loading: () => const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator())),
+              error: (_, __) => const SliverToBoxAdapter(child: Text('Error')),
             ),
           ],
         ),
@@ -273,7 +344,6 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-/// Quick action button tile for the home dashboard.
 class _QuickActionButton extends StatelessWidget {
   const _QuickActionButton({
     required this.icon,
@@ -308,9 +378,9 @@ class _QuickActionButton extends StatelessWidget {
   }
 }
 
-/// Compact opportunity card for the home feed.
 class _OpportunityMiniCard extends StatelessWidget {
   const _OpportunityMiniCard({
+    required this.id,
     required this.title,
     required this.org,
     required this.location,
@@ -318,6 +388,7 @@ class _OpportunityMiniCard extends StatelessWidget {
     required this.matchColor,
   });
 
+  final String id;
   final String title;
   final String org;
   final String location;
@@ -327,7 +398,7 @@ class _OpportunityMiniCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SurfaceCard(
-      onTap: () => context.push(AppRoutes.opportunityDetail),
+      onTap: () => context.push('${AppRoutes.opportunityDetail}/$id'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

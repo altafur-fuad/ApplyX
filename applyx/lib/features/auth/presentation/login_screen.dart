@@ -195,7 +195,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                        // TODO: Navigate to signup screen
+                        context.go(AppRoutes.signup);
                       },
                       style: TextButton.styleFrom(
                         padding: EdgeInsets.zero,

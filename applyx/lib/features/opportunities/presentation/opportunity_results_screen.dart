@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
@@ -7,18 +8,19 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/status_chip.dart';
 import '../../../core/widgets/surface_card.dart';
+import '../../../core/widgets/app_states.dart';
+import '../../goals/presentation/providers/goal_provider.dart';
+import 'providers/opportunity_provider.dart';
+import '../domain/opportunity.dart';
 
-/// Opportunity Results screen.
-///
-/// design.md § 6.7:
-/// Top: goal, status, summary.
-/// Groups: Recommended, Needs Review, Not Enough Evidence.
-/// Each card: Title, Org, Remote/Location, Deadline, Match reason, Source.
-class OpportunityResultsScreen extends StatelessWidget {
+class OpportunityResultsScreen extends ConsumerWidget {
   const OpportunityResultsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final opportunitiesAsync = ref.watch(opportunitiesProvider);
+    final activeGoalAsync = ref.watch(activeGoalProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -29,87 +31,82 @@ class OpportunityResultsScreen extends StatelessWidget {
         ),
       ),
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            // Summary
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.pagePadding,
-                  AppSpacing.lg,
-                  AppSpacing.pagePadding,
-                  AppSpacing.xl,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+        child: opportunitiesAsync.when(
+          data: (opportunities) {
+            if (opportunities.isEmpty) {
+              return AppEmptyState(
+                icon: Icons.search_off,
+                title: 'No opportunities found',
+                message: "Your agent hasn't found any matches yet.",
+                actionLabel: 'Go Back',
+                onAction: () => context.pop(),
+              );
+            }
+
+            final recommended = opportunities.where((o) => o.matchLevel == MatchLevel.strong).toList();
+            final needsReview = opportunities.where((o) => o.matchLevel == MatchLevel.review).toList();
+
+            return CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.pagePadding,
+                      AppSpacing.lg,
+                      AppSpacing.pagePadding,
+                      AppSpacing.xl,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        StatusChip.completed(),
-                        const Spacer(),
+                        Row(
+                          children: [
+                            StatusChip.completed(),
+                            const Spacer(),
+                            Text(
+                              '${opportunities.length} opportunities found',
+                              style: AppTypography.caption(),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        activeGoalAsync.when(
+                          data: (goal) => Text(
+                            goal?.title ?? 'No Active Goal',
+                            style: AppTypography.h2(),
+                          ),
+                          loading: () => const Text('Loading goal...'),
+                          error: (_, __) => const Text('Goal Error'),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
                         Text(
-                          '6 opportunities found',
-                          style: AppTypography.caption(),
+                          'Agent found ${opportunities.length} opportunities. ${recommended.length} are strong matches.',
+                          style: AppTypography.bodySmall(),
                         ),
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      'Find paid remote Flutter internships',
-                      style: AppTypography.h2(),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'Agent found 6 opportunities across 3 sources. 3 are strong matches.',
-                      style: AppTypography.bodySmall(),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
 
-            // Section: Recommended
-            _sectionHeader('Recommended'),
-            _opportunityCard(
-              context,
-              title: 'Flutter Developer Intern',
-              org: 'TechCorp Inc.',
-              location: 'Remote',
-              deadline: 'Oct 15, 2026',
-              reason: 'Strong Flutter skills match. Remote position.',
-              matchColor: AppColors.success,
-              matchLabel: 'Strong Match',
-            ),
-            _opportunityCard(
-              context,
-              title: 'Mobile App Engineering Intern',
-              org: 'StartupAI',
-              location: 'Remote',
-              deadline: 'Oct 20, 2026',
-              reason: 'Dart/Flutter listed. Paid internship.',
-              matchColor: AppColors.success,
-              matchLabel: 'Strong Match',
-            ),
+                if (recommended.isNotEmpty) ...[
+                  _sectionHeader('Recommended'),
+                  ...recommended.map((opp) => _opportunityCard(context, opp, AppColors.success, 'Strong Match')),
+                  const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+                ],
 
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
-
-            // Section: Needs Review
-            _sectionHeader('Needs Review'),
-            _opportunityCard(
-              context,
-              title: 'Mobile App Research Assistant',
-              org: 'University of Dhaka',
-              location: 'Hybrid — Dhaka',
-              deadline: 'Nov 1, 2026',
-              reason: 'Relevant skills but hybrid preference unclear.',
-              matchColor: AppColors.warning,
-              matchLabel: 'Needs Review',
-            ),
-
-            const SliverToBoxAdapter(
-              child: SizedBox(height: AppSpacing.section),
-            ),
-          ],
+                if (needsReview.isNotEmpty) ...[
+                  _sectionHeader('Needs Review'),
+                  ...needsReview.map((opp) => _opportunityCard(context, opp, AppColors.warning, 'Needs Review')),
+                  const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.section)),
+                ],
+              ],
+            );
+          },
+          loading: () => const AppLoadingState(message: 'Loading opportunities...'),
+          error: (error, stack) => AppErrorState(
+            message: 'Couldn\'t load opportunities.',
+            onRetry: () => ref.refresh(opportunitiesProvider),
+          ),
         ),
       ),
     );
@@ -130,15 +127,11 @@ class OpportunityResultsScreen extends StatelessWidget {
   }
 
   SliverToBoxAdapter _opportunityCard(
-    BuildContext context, {
-    required String title,
-    required String org,
-    required String location,
-    required String deadline,
-    required String reason,
-    required Color matchColor,
-    required String matchLabel,
-  }) {
+    BuildContext context,
+    Opportunity opportunity,
+    Color matchColor,
+    String matchLabel,
+  ) {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
@@ -148,7 +141,7 @@ class OpportunityResultsScreen extends StatelessWidget {
           AppSpacing.md,
         ),
         child: SurfaceCard(
-          onTap: () => context.push(AppRoutes.opportunityDetail),
+          onTap: () => context.push('${AppRoutes.opportunityDetail}/${opportunity.id}'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -156,7 +149,7 @@ class OpportunityResultsScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      title,
+                      opportunity.title,
                       style: AppTypography.body(),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -166,11 +159,12 @@ class OpportunityResultsScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.md),
-              _infoRow(Icons.business_outlined, org),
+              _infoRow(Icons.business_outlined, opportunity.organization),
               const SizedBox(height: 6),
-              _infoRow(Icons.location_on_outlined, location),
+              _infoRow(Icons.location_on_outlined, opportunity.location),
               const SizedBox(height: 6),
-              _infoRow(Icons.calendar_today_outlined, 'Deadline: $deadline'),
+              if (opportunity.deadline != null)
+                _infoRow(Icons.calendar_today_outlined, 'Deadline: ${opportunity.deadline}'),
               const SizedBox(height: AppSpacing.md),
               Container(
                 padding: const EdgeInsets.all(AppSpacing.md),
@@ -189,7 +183,7 @@ class OpportunityResultsScreen extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        reason,
+                        opportunity.reason,
                         style: AppTypography.caption(
                           color: AppColors.textPrimary,
                         ),

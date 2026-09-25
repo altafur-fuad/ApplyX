@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
@@ -9,72 +10,19 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/surface_card.dart';
+import '../../../core/widgets/app_states.dart';
+import 'providers/agent_provider.dart';
+import '../../goals/presentation/providers/goal_provider.dart';
+import '../domain/agent_run.dart';
 
-/// Agent step data for the activity timeline.
-class _AgentStep {
-  _AgentStep({
-    required this.title,
-    required this.description,
-    this.status = _StepStatus.queued,
-  });
-
-  final String title;
-  final String description;
-  _StepStatus status;
-}
-
-enum _StepStatus { queued, running, completed, approval, failed }
-
-/// Agent Activity screen — the signature ApplyX interaction.
-///
-/// design.md § 6.6: shows an execution timeline.
-/// Each step is expandable. Animation reflects actual agent state.
-///
-/// IMPORTANT: This simulates agent progress with local state.
-/// Real implementation will poll/stream backend agent_run events.
-class AgentActivityScreen extends StatefulWidget {
+class AgentActivityScreen extends ConsumerStatefulWidget {
   const AgentActivityScreen({super.key});
 
   @override
-  State<AgentActivityScreen> createState() => _AgentActivityScreenState();
+  ConsumerState<AgentActivityScreen> createState() => _AgentActivityScreenState();
 }
 
-class _AgentActivityScreenState extends State<AgentActivityScreen> {
-  final List<_AgentStep> _steps = [
-    _AgentStep(
-      title: 'Goal received',
-      description: 'Processing your goal request.',
-      status: _StepStatus.completed,
-    ),
-    _AgentStep(
-      title: 'Plan created',
-      description: 'Breaking goal into research and analysis tasks.',
-      status: _StepStatus.completed,
-    ),
-    _AgentStep(
-      title: 'Searching opportunities',
-      description: 'Querying approved sources for matching opportunities.',
-      status: _StepStatus.completed,
-    ),
-    _AgentStep(
-      title: 'Checking eligibility',
-      description: 'Comparing requirements against your profile.',
-      status: _StepStatus.running,
-    ),
-    _AgentStep(
-      title: 'Comparing your profile',
-      description: 'Analyzing skill and experience fit.',
-    ),
-    _AgentStep(
-      title: 'Preparing documents',
-      description: 'Drafting tailored application materials.',
-    ),
-    _AgentStep(
-      title: 'Verification',
-      description: 'Verifying claims and source freshness.',
-    ),
-  ];
-
+class _AgentActivityScreenState extends ConsumerState<AgentActivityScreen> {
   Timer? _simulationTimer;
 
   @override
@@ -83,8 +31,6 @@ class _AgentActivityScreenState extends State<AgentActivityScreen> {
     _startSimulation();
   }
 
-  /// Simulates agent progress by advancing one step at a time.
-  /// Clearly labeled: this is mock behavior for UI development.
   void _startSimulation() {
     _simulationTimer = Timer.periodic(
       const Duration(seconds: 3),
@@ -94,22 +40,10 @@ class _AgentActivityScreenState extends State<AgentActivityScreen> {
           return;
         }
 
-        final runningIndex =
-            _steps.indexWhere((s) => s.status == _StepStatus.running);
-        if (runningIndex == -1) {
-          timer.cancel();
-          return;
-        }
-
-        setState(() {
-          _steps[runningIndex].status = _StepStatus.completed;
-          if (runningIndex + 1 < _steps.length) {
-            _steps[runningIndex + 1].status = _StepStatus.running;
-          }
-        });
-
-        // When all steps complete, allow navigation
-        if (_steps.every((s) => s.status == _StepStatus.completed)) {
+        ref.read(agentRunProvider.notifier).simulateProgress();
+        
+        final state = ref.read(agentRunProvider);
+        if (state.value?.status == AgentStatus.completed || state.value?.status == AgentStatus.failed) {
           timer.cancel();
         }
       },
@@ -122,11 +56,11 @@ class _AgentActivityScreenState extends State<AgentActivityScreen> {
     super.dispose();
   }
 
-  bool get _isComplete =>
-      _steps.every((s) => s.status == _StepStatus.completed);
-
   @override
   Widget build(BuildContext context) {
+    final agentRunAsync = ref.watch(agentRunProvider);
+    final activeGoalAsync = ref.watch(activeGoalProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -137,105 +71,128 @@ class _AgentActivityScreenState extends State<AgentActivityScreen> {
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            // Goal summary
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.pagePadding,
-                AppSpacing.lg,
-                AppSpacing.pagePadding,
-                AppSpacing.xl,
-              ),
-              child: SurfaceCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Current Goal', style: AppTypography.label()),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'Find paid remote Flutter internships',
-                      style: AppTypography.h3(),
+        child: agentRunAsync.when(
+          data: (run) {
+            if (run == null) {
+              return const AppEmptyState(
+                icon: Icons.auto_awesome,
+                title: 'No active agent',
+                message: 'Start a goal to run the agent.',
+              );
+            }
+
+            final isComplete = run.status == AgentStatus.completed;
+
+            return Column(
+              children: [
+                // Goal summary
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.pagePadding,
+                    AppSpacing.lg,
+                    AppSpacing.pagePadding,
+                    AppSpacing.xl,
+                  ),
+                  child: SurfaceCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Current Goal', style: AppTypography.label()),
+                        const SizedBox(height: AppSpacing.sm),
+                        activeGoalAsync.when(
+                          data: (goal) => Text(
+                            goal?.title ?? 'Unknown Goal',
+                            style: AppTypography.h3(),
+                          ),
+                          loading: () => const Text('Loading...'),
+                          error: (_, __) => const Text('Error loading goal'),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
 
-            // Timeline
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.pagePadding,
+                // Timeline
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.pagePadding,
+                    ),
+                    itemCount: run.steps.length,
+                    itemBuilder: (context, index) {
+                      return _AgentStepTile(
+                        step: run.steps[index],
+                        isLast: index == run.steps.length - 1,
+                      );
+                    },
+                  ),
                 ),
-                itemCount: _steps.length,
-                itemBuilder: (context, index) {
-                  return _AgentStepTile(
-                    step: _steps[index],
-                    isLast: index == _steps.length - 1,
-                  );
-                },
-              ),
-            ),
 
-            // View results button
-            if (_isComplete)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.pagePadding,
-                  AppSpacing.lg,
-                  AppSpacing.pagePadding,
-                  AppSpacing.section,
-                ),
-                child: AppPrimaryButton(
-                  label: 'View Results',
-                  onPressed: () =>
-                      context.push(AppRoutes.opportunityResults),
-                ),
-              ),
-          ],
+                // View results button
+                if (isComplete)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.pagePadding,
+                      AppSpacing.lg,
+                      AppSpacing.pagePadding,
+                      AppSpacing.section,
+                    ),
+                    child: AppPrimaryButton(
+                      label: 'View Results',
+                      onPressed: () => context.push(AppRoutes.opportunityResults),
+                    ),
+                  ),
+              ],
+            );
+          },
+          loading: () => const AppLoadingState(message: 'Initializing Agent...'),
+          error: (error, stack) => AppErrorState(
+            message: 'Failed to connect to agent.',
+            onRetry: () => ref.refresh(agentRunProvider),
+          ),
         ),
       ),
     );
   }
 }
 
-/// Single step in the agent timeline.
 class _AgentStepTile extends StatelessWidget {
   const _AgentStepTile({
     required this.step,
     required this.isLast,
   });
 
-  final _AgentStep step;
+  final AgentStep step;
   final bool isLast;
 
   Color get _dotColor {
     switch (step.status) {
-      case _StepStatus.completed:
+      case AgentStatus.completed:
         return AppColors.agentCompleted;
-      case _StepStatus.running:
+      case AgentStatus.running:
         return AppColors.agentActive;
-      case _StepStatus.approval:
+      case AgentStatus.approval:
         return AppColors.agentApproval;
-      case _StepStatus.failed:
+      case AgentStatus.failed:
         return AppColors.agentFailed;
-      case _StepStatus.queued:
+      case AgentStatus.queued:
+      case AgentStatus.cancelled:
         return AppColors.agentQueued;
     }
   }
 
   IconData get _icon {
     switch (step.status) {
-      case _StepStatus.completed:
+      case AgentStatus.completed:
         return Icons.check_circle;
-      case _StepStatus.running:
+      case AgentStatus.running:
         return Icons.sync;
-      case _StepStatus.approval:
+      case AgentStatus.approval:
         return Icons.front_hand;
-      case _StepStatus.failed:
+      case AgentStatus.failed:
         return Icons.error;
-      case _StepStatus.queued:
+      case AgentStatus.queued:
+      case AgentStatus.cancelled:
         return Icons.circle_outlined;
     }
   }
@@ -275,7 +232,7 @@ class _AgentStepTile extends StatelessWidget {
                   Text(
                     step.title,
                     style: AppTypography.body(
-                      color: step.status == _StepStatus.queued
+                      color: step.status == AgentStatus.queued
                           ? AppColors.textSecondary
                           : AppColors.textPrimary,
                     ),
@@ -285,7 +242,7 @@ class _AgentStepTile extends StatelessWidget {
                     step.description,
                     style: AppTypography.caption(),
                   ),
-                  if (step.status == _StepStatus.running) ...[
+                  if (step.status == AgentStatus.running) ...[
                     const SizedBox(height: AppSpacing.sm),
                     SizedBox(
                       width: 120,
