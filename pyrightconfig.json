@@ -1,0 +1,18 @@
+{
+    "venvPath": "e:\\ApplyX\\backend",
+    "venv": ".venv",
+    "pythonVersion": "3.13",
+    "pythonPlatform": "Windows",
+    "exclude": [
+        "**/__pycache__",
+        "backend/.venv",
+        "applyx"
+    ],
+    "reportMissingTypeStubs": false,
+    "executionEnvironments": [
+        {
+            "root": "backend",
+            "pythonVersion": "3.13"
+        }
+    ]
+}
