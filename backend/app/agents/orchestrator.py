@@ -41,10 +41,10 @@ from app.agents.state import (
     transition_run,
     transition_task,
 )
-from app.agents.planner import PlannerAgent
-from app.agents.research import ResearchAgent
-from app.agents.eligibility import EligibilityAgent
-from app.agents.profile_fit import ProfileFitAgent
+from app.agents.planner import get_planner_agent
+from app.agents.research import get_research_agent
+from app.agents.eligibility import get_eligibility_agent
+from app.agents.profile_fit import get_profile_fit_agent
 from app.agents.document import DocumentAgent
 from app.agents.verification import VerificationService
 from app.agents.action import ActionAgent
@@ -66,10 +66,10 @@ class Orchestrator:
         self.guardrails = guardrails or AgentGuardrails()
 
         # Specialist agents
-        self.planner = PlannerAgent()
-        self.research = ResearchAgent()
-        self.eligibility = EligibilityAgent()
-        self.profile_fit = ProfileFitAgent()
+        self.planner = get_planner_agent()
+        self.research = get_research_agent()
+        self.eligibility = get_eligibility_agent()
+        self.profile_fit = get_profile_fit_agent()
         self.document = DocumentAgent()
         self.verification = VerificationService()
         self.action = ActionAgent()
@@ -106,7 +106,7 @@ class Orchestrator:
             self._emit_event(state, AgentEventType.RUN_CREATED, "Agent run started.")
 
             # 2 — Generate plan
-            plan = self.planner.create_plan(
+            plan = await self.planner.create_plan(
                 raw_goal=str(goal_data.get("raw_goal", "")),
                 structured_constraints=goal_data.get("structured_constraints_json", {}),
                 profile=profile_data,
@@ -228,7 +228,7 @@ class Orchestrator:
         )
 
         try:
-            output = self._dispatch_task(task, context)
+            output = await self._dispatch_task(task, context)
             task.output = output
 
             # Merge output into shared context
@@ -257,7 +257,7 @@ class Orchestrator:
                 task_id=task.id,
             )
 
-    def _dispatch_task(
+    async def _dispatch_task(
         self,
         task: AgentTask,
         context: Dict[str, Any],
@@ -266,16 +266,16 @@ class Orchestrator:
         profile = context.get("profile", {})
 
         if task.agent_type == AgentType.RESEARCH:
-            return self.research.execute(task.input)
+            return await self.research.execute(task.input)
 
         elif task.agent_type == AgentType.ELIGIBILITY:
-            return self.eligibility.execute(
+            return await self.eligibility.execute(
                 context.get("opportunities", []),
                 profile,
             )
 
         elif task.agent_type == AgentType.PROFILE_FIT:
-            return self.profile_fit.execute(
+            return await self.profile_fit.execute(
                 context.get("eligibility_results", []),
                 profile,
             )
@@ -359,6 +359,19 @@ class Orchestrator:
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         self._events.append(event)
+        
+        if state.run_id:
+            try:
+                from app.services import agent_event_service
+                agent_event_service.create_agent_event(
+                    agent_run_id=state.run_id,
+                    event_type=event_type.value,
+                    task_id=task_id,
+                    message=message,
+                    payload=None
+                )
+            except Exception as e:
+                logger.error(f"Failed to persist event {event_type.value}: {e}")
         logger.info(
             "agent_event run_id=%s type=%s message=%s",
             state.run_id,

@@ -33,6 +33,7 @@ This is the FastAPI backend for the ApplyX application.
    ```powershell
    cp .env.example .env
    ```
+   **OpenAI Key**: To enable the Phase 4 real LLM functionality, add `OPENAI_API_KEY=your-key` to `.env`.
    **Security Warning**: The `SUPABASE_SERVICE_ROLE_KEY` is a highly privileged, backend-only secret. It bypasses Row Level Security. It must NEVER be exposed to Flutter or any client-side code.
 
 5. **How to Run FastAPI**:
@@ -127,11 +128,23 @@ The backend now includes a modular, deterministic Agentic AI runtime with strict
 
 ### LLM Abstraction
 - A clean `LLMProvider` interface handles generation (`app.services.llm_service`).
-- Currently defaults to `MockLLMProvider` ensuring tests and Phase 3 run deterministically without requiring an API key.
+- Supports both `OpenAILLMProvider` (when `OPENAI_API_KEY` is set) and a fallback `MockLLMProvider` for offline testing.
 
-### Testing Phase 3
-Phase 3 comes with a comprehensive test suite (40+ tests) covering state machines, validation, risk policies, and API.
+### Testing Phase 3 and Phase 4
+Comprehensive test suites cover state machines, validation, risk policies, and API.
 Run tests using:
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
 ```
+
+## Phase 4 Architecture: Real LLM Integration
+
+The backend has been upgraded to Phase 4, transitioning from deterministic mocks to a real LLM-powered reasoning engine.
+
+### Real LLM Capabilities
+- **Structured Planner**: Uses OpenAI's structured outputs (`response_format`) to generate robust, schema-compliant `AgentPlan`s dynamically.
+- **Web Research**: The Research Agent is powered by an LLM loop using `Tool Calling` (`tools` parameter) to formulate queries and extract real-world opportunities dynamically.
+- **Eligibility & Profile Fit**: Specialist agents process the authenticated profile against normalized opportunity requirements to provide evidence-backed, reasoned analysis instead of deterministic matching.
+- **Fallback safety**: Missing keys cleanly fall back to Phase 3 Mock agents without crashing.
+- **Background Execution**: Agent orchestration runs asynchronously without blocking HTTP requests.
+

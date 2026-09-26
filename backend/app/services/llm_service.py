@@ -13,7 +13,8 @@ from __future__ import annotations
 
 import abc
 import logging
-from typing import Any, Dict, List, Optional
+import time
+from typing import Any, Dict, List, Optional, Type
 
 from pydantic import BaseModel, Field
 
@@ -37,6 +38,9 @@ class LLMRequest(BaseModel):
     temperature: float = 0.0
     max_tokens: int = 1024
     response_format: Optional[str] = None  # "json" for structured output
+    response_model: Optional[Type[BaseModel]] = None # For structured outputs
+    tools: Optional[List[Dict[str, Any]]] = None
+    tool_choice: Optional[str] = None
 
 
 class LLMResponse(BaseModel):
@@ -45,6 +49,8 @@ class LLMResponse(BaseModel):
     model: str = "mock"
     usage: Dict[str, int] = Field(default_factory=dict)
     finish_reason: Optional[str] = None
+    parsed: Optional[Any] = None
+    tool_calls: Optional[List[Dict[str, Any]]] = None
 
 
 class LLMCostRecord(BaseModel):
@@ -139,6 +145,103 @@ class MockLLMProvider(LLMProvider):
 
 
 # ---------------------------------------------------------------------------
+# OpenAI implementation
+# ---------------------------------------------------------------------------
+
+class OpenAILLMProvider(LLMProvider):
+    """Real LLM Provider using OpenAI Python SDK."""
+    
+    def __init__(self, api_key: str, default_model: str = "gpt-4o-mini") -> None:
+        import openai
+        self._client = openai.AsyncOpenAI(api_key=api_key)
+        self._default_model = default_model
+
+    async def complete(self, request: LLMRequest) -> LLMResponse:
+        model = request.model if request.model != "mock" else self._default_model
+        
+        kwargs: Dict[str, Any] = {
+            "model": model,
+            "messages": [{"role": m.role, "content": m.content} for m in request.messages],
+            "temperature": request.temperature,
+            "max_tokens": request.max_tokens,
+        }
+        
+        if request.tools:
+            kwargs["tools"] = request.tools
+        if request.tool_choice:
+            kwargs["tool_choice"] = request.tool_choice
+            
+        start_time = time.time()
+        
+        try:
+            if request.response_model:
+                completion = await self._client.beta.chat.completions.parse(
+                    response_format=request.response_model,
+                    **kwargs
+                )
+                msg = completion.choices[0].message
+                content = msg.content or ""
+                parsed = msg.parsed if hasattr(msg, "parsed") else None
+                tool_calls = None
+            else:
+                if request.response_format == "json":
+                    kwargs["response_format"] = {"type": "json_object"}
+                    
+                completion = await self._client.chat.completions.create(**kwargs)
+                msg = completion.choices[0].message
+                content = msg.content or ""
+                parsed = None
+                
+                if msg.tool_calls:
+                    tool_calls = [
+                        {
+                            "id": tc.id,
+                            "type": tc.type,
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments,
+                            }
+                        }
+                        for tc in msg.tool_calls
+                    ]
+                else:
+                    tool_calls = None
+
+            usage_dict = {
+                "prompt_tokens": completion.usage.prompt_tokens if completion.usage else 0,
+                "completion_tokens": completion.usage.completion_tokens if completion.usage else 0,
+                "total_tokens": completion.usage.total_tokens if completion.usage else 0,
+            }
+            
+            finish_reason = completion.choices[0].finish_reason
+            
+            logger.info(
+                "openai_complete model=%s ms=%.0f pt=%d ct=%d finish=%s",
+                model,
+                (time.time() - start_time) * 1000,
+                usage_dict["prompt_tokens"],
+                usage_dict["completion_tokens"],
+                finish_reason
+            )
+            
+            return LLMResponse(
+                content=content,
+                model=model,
+                usage=usage_dict,
+                finish_reason=finish_reason,
+                parsed=parsed,
+                tool_calls=tool_calls
+            )
+            
+        except Exception as e:
+            logger.error("openai_complete failed: %s", str(e))
+            raise RuntimeError(f"LLM Provider Error: {str(e)}") from e
+
+    def provider_name(self) -> str:
+        return "openai"
+
+
+# ---------------------------------------------------------------------------
 # Service singleton
 # ---------------------------------------------------------------------------
 
@@ -146,10 +249,19 @@ _provider: Optional[LLMProvider] = None
 
 
 def get_llm_provider() -> LLMProvider:
-    """Return the configured LLM provider (defaults to mock)."""
+    """Return the configured LLM provider (defaults to mock if no key)."""
     global _provider
     if _provider is None:
-        _provider = MockLLMProvider()
+        from app.core.config import get_settings
+        settings = get_settings()
+        if settings.openai_api_key:
+            _provider = OpenAILLMProvider(
+                api_key=settings.openai_api_key,
+                default_model=settings.openai_model or "gpt-4o-mini"
+            )
+        else:
+            logger.warning("OPENAI_API_KEY not found. Falling back to MockLLMProvider.")
+            _provider = MockLLMProvider()
     return _provider
 
 

@@ -28,15 +28,23 @@ def override_get_current_user():
     yield
     app.dependency_overrides.clear()
 
+@pytest.fixture(autouse=True)
+def mock_env_vars(monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "http://mock-supabase")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "mock-key")
+
+
 
 class TestOrchestrator:
     @pytest.mark.asyncio
     async def test_deterministic_end_to_end_agent_run(self):
-        orch = Orchestrator()
-        result = await orch.run(
-            goal_data={"id": str(uuid4()), "raw_goal": "Find software engineering internship"},
-            profile_data={"skills": ["python", "fastapi"]},
-        )
+        from unittest.mock import patch
+        with patch("app.services.agent_event_service.create_agent_event"):
+            orch = Orchestrator()
+            result = await orch.run(
+                goal_data={"id": str(uuid4()), "raw_goal": "Find software engineering internship"},
+                profile_data={"skills": ["python", "fastapi"]},
+            )
         assert result.status == RunStatus.COMPLETED
         assert result.plan is not None
         assert len(result.tasks) == 5

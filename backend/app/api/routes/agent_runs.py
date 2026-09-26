@@ -23,9 +23,70 @@ from app.agents.models import (
 )
 from app.core.errors import APIError
 from app.core.security import get_current_user
-from app.services import agent_run_service, agent_event_service, goal_service
+from app.services import agent_run_service, agent_event_service, goal_service, profile_service
+from app.agents.orchestrator import Orchestrator
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+async def _execute_run(run_id: str, user_id: str, goal: dict):
+    try:
+        # 1. Transition to PLANNING
+        agent_run_service.transition_agent_run_status(
+            run_id=run_id,
+            user_id=user_id,
+            new_status=RunStatus.PLANNING,
+            current_step="Initializing orchestrator"
+        )
+        
+        # 2. Get Profile
+        try:
+            profile = profile_service.get_profile(user_id)
+        except Exception:
+            profile = {}
+        
+        # 3. Run Orchestrator
+        orch = Orchestrator()
+        state = await orch.run(
+            goal_data=goal,
+            profile_data=profile,
+            run_id=run_id,
+            user_id=user_id
+        )
+        
+        # 4. Save Final State
+        final_summary = None
+        if state.final_result:
+            final_summary = str(state.final_result)
+        
+        plan_json = None
+        if state.plan:
+            plan_json = {"tasks": [t.model_dump(mode="json") for t in state.plan.tasks]}
+            
+        agent_run_service.transition_agent_run_status(
+            run_id=run_id,
+            user_id=user_id,
+            new_status=state.status,
+            error_message=state.error,
+            final_summary=final_summary,
+            plan_json=plan_json,
+            current_step="Completed"
+        )
+        
+    except Exception as e:
+        import traceback
+        logger.error(f"Error in background agent run: {traceback.format_exc()}")
+        try:
+            agent_run_service.transition_agent_run_status(
+                run_id=run_id,
+                user_id=user_id,
+                new_status=RunStatus.FAILED,
+                error_message=str(e),
+                current_step="Failed due to exception"
+            )
+        except:
+            pass
 
 
 @router.post("", response_model=AgentRunResponse, status_code=201)
@@ -51,9 +112,8 @@ def create_agent_run(
         status=RunStatus.QUEUED.value,
     )
 
-    # Schedule background execution (will be wired in later phases)
-    # For now, the run stays QUEUED until a worker picks it up.
-    # background_tasks.add_task(_execute_run, run["id"], str(user.id), goal)
+    # Schedule background execution
+    background_tasks.add_task(_execute_run, run["id"], str(user.id), goal)
 
     return run
 
