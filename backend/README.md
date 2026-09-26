@@ -48,6 +48,49 @@ This is the FastAPI backend for the ApplyX application.
    pytest
    ```
 
-## Endpoints
+## Phase 2 Architecture
 
-- **Health Endpoint**: `GET /api/v1/health` - Simple JSON response indicating the backend is running.
+The backend now serves as a secure, authenticated API layer utilizing Supabase for data access.
+
+### Authentication Flow
+1. Flutter client authenticates via Supabase Auth.
+2. Client receives a Supabase JWT.
+3. Client includes the JWT in the `Authorization` header:
+   ```
+   Authorization: Bearer <Supabase JWT>
+   ```
+4. FastAPI `get_current_user` dependency verifies the JWT signature securely via the Supabase Python SDK.
+5. Ownership checks and Row Level Security enforcement are performed using the authenticated user identity (not client-provided data).
+
+### API Endpoints
+
+**Health**
+- `GET /health`
+- `GET /api/v1/health`
+
+**Profiles**
+- `GET /api/v1/profiles/me`
+- `PUT /api/v1/profiles/me`
+
+**Goals**
+- `POST /api/v1/goals`
+- `GET /api/v1/goals`
+- `GET /api/v1/goals/{goal_id}`
+- `PATCH /api/v1/goals/{goal_id}`
+
+**Opportunities**
+- `GET /api/v1/opportunities`
+- `GET /api/v1/opportunities/{opportunity_id}`
+- `POST /api/v1/opportunities/{opportunity_id}/save`
+
+**Applications**
+- `GET /api/v1/applications`
+- `POST /api/v1/applications`
+- `PATCH /api/v1/applications/{application_id}`
+
+### Example Curl Request
+
+```bash
+curl -X GET http://localhost:8000/api/v1/profiles/me \
+  -H "Authorization: Bearer YOUR_SUPABASE_JWT"
+```
