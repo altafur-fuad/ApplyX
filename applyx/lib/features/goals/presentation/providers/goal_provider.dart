@@ -1,11 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/goal.dart';
 import '../../data/goal_repository.dart';
-
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/network/api_client.dart';
 
 final goalRepositoryProvider = Provider<GoalRepository>((ref) {
-  return SupabaseGoalRepository(Supabase.instance.client);
+  final apiClient = ref.watch(apiClientProvider);
+  return ApiGoalRepository(apiClient);
 });
 
 final activeGoalProvider = FutureProvider<Goal?>((ref) {

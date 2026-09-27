@@ -6,8 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:applyx/features/auth/data/auth_repository.dart';
 import 'package:applyx/features/profile/data/profile_repository.dart';
 import 'package:applyx/features/profile/domain/profile.dart';
-import 'package:applyx/features/goals/data/goal_repository.dart';
-import 'package:applyx/features/goals/domain/goal.dart';
+
 import 'package:applyx/features/opportunities/data/opportunity_repository.dart';
 import 'package:applyx/features/applications/data/application_repository.dart';
 import 'package:applyx/features/documents/data/document_repository.dart';
@@ -19,7 +18,7 @@ void main() {
     late SupabaseClient supabase;
     late SupabaseAuthRepository authRepo;
     late SupabaseProfileRepository profileRepo;
-    late SupabaseGoalRepository goalRepo;
+
     late SupabaseOpportunityRepository opportunityRepo;
     late SupabaseApplicationRepository applicationRepo;
     late SupabaseDocumentRepository documentRepo;
@@ -41,7 +40,7 @@ void main() {
 
       authRepo = SupabaseAuthRepository(supabase);
       profileRepo = SupabaseProfileRepository(supabase);
-      goalRepo = SupabaseGoalRepository(supabase);
+
       opportunityRepo = SupabaseOpportunityRepository(supabase);
       applicationRepo = SupabaseApplicationRepository(supabase);
       documentRepo = SupabaseDocumentRepository(supabase);
@@ -99,20 +98,7 @@ void main() {
       expect(verifyProfile.fullName, equals('Updated Test User'));
     });
 
-    test('9. Goal creation', () async {
-      final goal = Goal(
-        id: 'g1',
-        title: 'Find testing jobs',
-        rawGoal: 'I want a QA job',
-        createdAt: DateTime.now(),
-      );
-      await goalRepo.createGoal(goal);
-    });
 
-    test('8. Goal list', () async {
-      final goals = await goalRepo.getGoals();
-      expect(goals, isNotEmpty);
-    });
 
     test('10. Opportunity list (read-only)', () async {
       final opps = await opportunityRepo.getOpportunities();
