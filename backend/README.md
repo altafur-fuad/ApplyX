@@ -179,4 +179,20 @@ If primary authentication fails, the system safely falls back using:
 - `LLM_FALLBACK_PROVIDER=mock`
 
 ### Testing & Security
-Tests automatically execute within a secure, isolated `mock` environment, preventing accidental usage of real developer credentials inside test suites.
+Tests automatically execute within a secure, isolated `mock` environment, preventing accidental usage of real developer credentials inside test suites. 
+Tests never expose API keys or secrets in logs, messages, or diagnostics.
+
+### Safe Diagnostics & Smoke Test
+You can safely run diagnostics on your provider configuration without making external network calls (Dry-Run mode):
+
+```powershell
+python scripts/llm_smoke_test.py
+```
+
+This will print the configured provider, model, local initialization state, and capability mappings without hitting the API.
+
+To run a **REAL** network test against your explicitly configured provider, use the `--real` flag. This will send exactly ONE minimal prompt ("Reply with exactly: ApplyX smoke test successful") and print usage metadata and any normalized errors (like quotas or auth failures).
+
+```powershell
+python scripts/llm_smoke_test.py --real
+```

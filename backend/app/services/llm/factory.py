@@ -13,10 +13,34 @@ logger = logging.getLogger(__name__)
 
 _provider_cache: Optional[LLMProvider] = None
 
-def get_llm_provider(force_provider: Optional[str] = None) -> LLMProvider:
+def _create_provider_instance(provider_name: str, settings: Any) -> LLMProvider:
+    if provider_name == "mock":
+        return MockLLMProvider()
+    elif provider_name == "openai":
+        api_key = settings.llm_api_key or settings.openai_api_key
+        if not api_key:
+            raise LLMConfigurationError("OpenAI API key missing")
+        return OpenAILLMProvider(api_key=api_key, default_model=settings.llm_model or settings.openai_model or "gpt-4o-mini")
+    elif provider_name == "gemini":
+        api_key = settings.llm_api_key or settings.gemini_api_key
+        if not api_key:
+            raise LLMConfigurationError("Gemini API key missing")
+        return GeminiLLMProvider(api_key=api_key, default_model=settings.llm_model or "gemini-1.5-flash")
+    elif provider_name == "openai_compatible":
+        if not settings.llm_api_key or not settings.llm_base_url:
+            raise LLMConfigurationError("OpenAI Compatible provider needs API key and base URL")
+        return OpenAICompatibleProvider(
+            api_key=settings.llm_api_key,
+            base_url=settings.llm_base_url,
+            default_model=settings.llm_model or "default"
+        )
+    else:
+        raise LLMConfigurationError(f"Unknown provider '{provider_name}'")
+
+def get_llm_provider(force_provider: Optional[str] = None, disable_fallback: bool = False) -> LLMProvider:
     """
     Returns a configured LLM provider instance.
-    Uses fallback semantics from configuration if necessary.
+    Uses fallback semantics from configuration if necessary, unless disable_fallback is True.
     """
     global _provider_cache
     if _provider_cache is not None and not force_provider:
@@ -29,49 +53,20 @@ def get_llm_provider(force_provider: Optional[str] = None) -> LLMProvider:
     
     provider: LLMProvider
     
-    if provider_name == "mock":
-        provider = MockLLMProvider()
-    elif provider_name == "openai":
-        api_key = settings.llm_api_key or settings.openai_api_key
-        if not api_key:
-            # Fallback
-            if settings.llm_fallback_provider == "mock":
-                logger.warning("OpenAI API key missing. Falling back to Mock.")
-                provider = MockLLMProvider()
-            else:
-                raise LLMConfigurationError("OpenAI API key missing")
+    try:
+        provider = _create_provider_instance(provider_name, settings)
+    except LLMConfigurationError as e:
+        if disable_fallback:
+            raise
+        fallback = settings.llm_fallback_provider
+        if fallback:
+            logger.warning("Provider '%s' failed to initialize: %s. Falling back to '%s'.", provider_name, str(e), fallback)
+            try:
+                provider = _create_provider_instance(fallback, settings)
+            except Exception as fallback_e:
+                raise LLMConfigurationError(f"Fallback provider '{fallback}' also failed: {fallback_e}") from fallback_e
         else:
-            provider = OpenAILLMProvider(api_key=api_key, default_model=settings.llm_model or settings.openai_model or "gpt-4o-mini")
-    elif provider_name == "gemini":
-        api_key = settings.llm_api_key or settings.gemini_api_key
-        if not api_key:
-            if settings.llm_fallback_provider == "mock":
-                logger.warning("Gemini API key missing. Falling back to Mock.")
-                provider = MockLLMProvider()
-            else:
-                raise LLMConfigurationError("Gemini API key missing")
-        else:
-            provider = GeminiLLMProvider(api_key=api_key, default_model=settings.llm_model or "gemini-1.5-flash")
-    elif provider_name == "openai_compatible":
-        if not settings.llm_api_key or not settings.llm_base_url:
-            if settings.llm_fallback_provider == "mock":
-                logger.warning("OpenAI Compatible provider needs API key and base URL. Falling back to Mock.")
-                provider = MockLLMProvider()
-            else:
-                raise LLMConfigurationError("OpenAI Compatible provider needs API key and base URL")
-        else:
-            provider = OpenAICompatibleProvider(
-                api_key=settings.llm_api_key,
-                base_url=settings.llm_base_url,
-                default_model=settings.llm_model or "default"
-            )
-    else:
-        # Check fallback
-        if settings.llm_fallback_provider == "mock":
-            logger.warning(f"Unknown provider '{provider_name}'. Falling back to Mock.")
-            provider = MockLLMProvider()
-        else:
-            raise LLMConfigurationError(f"Unknown provider '{provider_name}'")
+            raise
             
     wrapped_provider = RetryLLMProviderWrapper(provider)
     if not force_provider:
@@ -85,22 +80,5 @@ def set_llm_provider(provider: LLMProvider) -> None:
     _provider_cache = provider
 
 def get_diagnostics() -> Dict[str, Any]:
-    """Safe diagnostics for health checks."""
-    try:
-        provider = get_llm_provider()
-        return {
-            "provider": provider.provider_name(),
-            "model": provider.model_name(),
-            "configured": True,
-            "credentials_present": True,
-            "capabilities": provider.capabilities().model_dump()
-        }
-    except Exception as e:
-        return {
-            "provider": "unknown",
-            "model": "unknown",
-            "configured": False,
-            "credentials_present": False,
-            "capabilities": None,
-            "error": str(e)
-        }
+    from app.services.llm.diagnostics import get_safe_diagnostics
+    return get_safe_diagnostics()
