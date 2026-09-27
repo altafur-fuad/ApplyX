@@ -69,6 +69,17 @@ class PaginatedOpportunities(BaseModel):
     items: List[OpportunityResponse]
     next_cursor: Optional[str] = None
 
+class EvidenceResponse(BaseModel):
+    claim: str
+    source_url: Optional[str] = None
+
+class OpportunityMatchResponse(BaseModel):
+    eligibility_status: str
+    fit_reasons: List[str]
+    missing_requirements: List[str]
+    evidence: List[EvidenceResponse]
+
+
 # Applications
 class ApplicationCreate(BaseModel):
     opportunity_id: UUID
@@ -87,5 +98,43 @@ class ApplicationResponse(BaseModel):
     notes: Optional[str] = None
     submitted_at: Optional[datetime] = None
     next_action_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    opportunity_title: Optional[str] = None
+    opportunity_organization: Optional[str] = None
+
+# Documents
+class DocumentDraftCreate(BaseModel):
+    application_id: UUID
+    kind: str
+    instruction: str
+
+class DocumentUpdate(BaseModel):
+    content: str
+
+class DocumentResponse(BaseModel):
+    id: UUID
+    user_id: UUID
+    application_id: Optional[UUID] = None
+    kind: str
+    title: str
+    content: str
+    version: int
+    is_draft: bool
+    created_at: datetime
+    updated_at: datetime
+
+# Approvals
+class ApprovalResponse(BaseModel):
+    id: UUID
+    user_id: UUID
+    agent_run_id: UUID
+    action_type: str
+    target_json: Dict[str, Any]
+    preview_json: Dict[str, Any]
+    risk_level: str
+    status: str
+    approved_at: Optional[datetime] = None
+    rejected_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime

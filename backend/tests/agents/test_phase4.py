@@ -13,14 +13,22 @@ def mock_env_vars(monkeypatch):
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "mock-key")
 
 @pytest.fixture(autouse=True)
-def isolate_config():
+def isolate_config(monkeypatch):
     from app.core.config import get_settings
     import app.services.llm_service as llms
+    
+    # Store the original provider to restore later
+    original_provider = llms._provider
+    
+    # Force the key to empty so tests default to mock
+    monkeypatch.setenv("OPENAI_API_KEY", "")
     get_settings.cache_clear()
     llms._provider = None
+    
     yield
+    
     get_settings.cache_clear()
-    llms._provider = None
+    llms._provider = original_provider
 
 @pytest.mark.asyncio
 async def test_llm_provider_config(monkeypatch):
@@ -28,7 +36,7 @@ async def test_llm_provider_config(monkeypatch):
     import app.services.llm_service as llms
     
     # Missing API KEY -> Mock
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "")
     get_settings.cache_clear()
     monkeypatch.setattr(llms, "_provider", None)
     provider = get_llm_provider()
@@ -85,7 +93,7 @@ def test_verification_service():
     assert len(res.issues) >= 0
 
 @pytest.mark.asyncio
-async def test_end_to_end_research_match():
+async def test_end_to_end_research_match(monkeypatch):
     from unittest.mock import patch
     
     with patch("app.services.agent_event_service.create_agent_event"):

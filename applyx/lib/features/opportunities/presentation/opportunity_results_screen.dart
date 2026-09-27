@@ -6,7 +6,6 @@ import '../../../app/router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../core/widgets/status_chip.dart';
 import '../../../core/widgets/surface_card.dart';
 import '../../../core/widgets/app_states.dart';
 import '../../goals/presentation/providers/goal_provider.dart';
@@ -43,13 +42,6 @@ class OpportunityResultsScreen extends ConsumerWidget {
               );
             }
 
-            final recommended = opportunities
-                .where((o) => o.matchLevel == MatchLevel.strong)
-                .toList();
-            final needsReview = opportunities
-                .where((o) => o.matchLevel == MatchLevel.review)
-                .toList();
-
             return CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
@@ -63,15 +55,9 @@ class OpportunityResultsScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            StatusChip.completed(),
-                            const Spacer(),
-                            Text(
-                              '${opportunities.length} opportunities found',
-                              style: AppTypography.caption(),
-                            ),
-                          ],
+                        Text(
+                          '${opportunities.length} opportunities found',
+                          style: AppTypography.caption(),
                         ),
                         const SizedBox(height: AppSpacing.md),
                         activeGoalAsync.when(
@@ -84,7 +70,7 @@ class OpportunityResultsScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
-                          'Agent found ${opportunities.length} opportunities. ${recommended.length} are strong matches.',
+                          'Agent found ${opportunities.length} opportunities.',
                           style: AppTypography.bodySmall(),
                         ),
                       ],
@@ -92,35 +78,16 @@ class OpportunityResultsScreen extends ConsumerWidget {
                   ),
                 ),
 
-                if (recommended.isNotEmpty) ...[
-                  _sectionHeader('Recommended'),
-                  ...recommended.map(
-                    (opp) => _opportunityCard(
-                      context,
-                      opp,
-                      AppColors.success,
-                      'Strong Match',
-                    ),
+                _sectionHeader('All Opportunities'),
+                ...opportunities.map(
+                  (opp) => _opportunityCard(
+                    context,
+                    opp,
                   ),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: AppSpacing.xl),
-                  ),
-                ],
-
-                if (needsReview.isNotEmpty) ...[
-                  _sectionHeader('Needs Review'),
-                  ...needsReview.map(
-                    (opp) => _opportunityCard(
-                      context,
-                      opp,
-                      AppColors.warning,
-                      'Needs Review',
-                    ),
-                  ),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: AppSpacing.section),
-                  ),
-                ],
+                ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: AppSpacing.xl),
+                ),
               ],
             );
           },
@@ -152,8 +119,6 @@ class OpportunityResultsScreen extends ConsumerWidget {
   SliverToBoxAdapter _opportunityCard(
     BuildContext context,
     Opportunity opportunity,
-    Color matchColor,
-    String matchLabel,
   ) {
     return SliverToBoxAdapter(
       child: Padding(
@@ -169,56 +134,25 @@ class OpportunityResultsScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      opportunity.title,
-                      style: AppTypography.body(),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  StatusChip(label: matchLabel, color: matchColor),
-                ],
+              Text(
+                opportunity.title,
+                style: AppTypography.body(),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: AppSpacing.md),
               _infoRow(Icons.business_outlined, opportunity.organization),
-              const SizedBox(height: 6),
-              _infoRow(Icons.location_on_outlined, opportunity.location),
-              const SizedBox(height: 6),
-              if (opportunity.deadline != null)
+              if (opportunity.location != null) ...[
+                const SizedBox(height: 6),
+                _infoRow(Icons.location_on_outlined, opportunity.location!),
+              ],
+              if (opportunity.deadline != null) ...[
+                const SizedBox(height: 6),
                 _infoRow(
                   Icons.calendar_today_outlined,
-                  'Deadline: ${opportunity.deadline}',
+                  'Deadline: ${opportunity.deadline!.toLocal().toString().split(' ')[0]}',
                 ),
-              const SizedBox(height: AppSpacing.md),
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.auto_awesome,
-                      size: 16,
-                      color: AppColors.aiAccent,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        opportunity.reason,
-                        style: AppTypography.caption(
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              ],
             ],
           ),
         ),

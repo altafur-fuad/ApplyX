@@ -1,46 +1,111 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/agent_run.dart';
 import '../../data/agent_repository.dart';
+import '../../../../core/network/api_client.dart';
 
 final agentRepositoryProvider = Provider<AgentRepository>((ref) {
-  return MockAgentRepository();
+  final apiClient = ref.watch(apiClientProvider);
+  return ApiAgentRepository(apiClient);
 });
 
 class AgentRunNotifier extends AsyncNotifier<AgentRun?> {
+  Timer? _pollingTimer;
+  bool _isDisposed = false;
+
   @override
   Future<AgentRun?> build() async {
-    final repository = ref.watch(agentRepositoryProvider);
-    return repository.getActiveRun();
+    ref.onDispose(() {
+      _isDisposed = true;
+      _pollingTimer?.cancel();
+    });
+    return null;
   }
 
-  void simulateProgress() {
-    final currentState = state.value;
-    if (currentState == null) return;
+  void _startPolling(String runId) {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (!_isDisposed) {
+        _pollRun(runId);
+      }
+    });
+  }
 
-    final steps = List<AgentStep>.from(currentState.steps);
-    final runningIndex = steps.indexWhere(
-      (s) => s.status == AgentStatus.running,
-    );
-    if (runningIndex == -1) return;
+  Future<void> _pollRun(String runId) async {
+    try {
+      final repository = ref.read(agentRepositoryProvider);
+      final run = await repository.getAgentRun(runId);
+      final events = await repository.getAgentRunEvents(runId);
+      
+      final updatedRun = run.copyWith(events: events);
+      
+      if (!_isDisposed) {
+        state = AsyncData(updatedRun);
+      }
 
-    steps[runningIndex] = steps[runningIndex].copyWith(
-      status: AgentStatus.completed,
-    );
-
-    if (runningIndex + 1 < steps.length) {
-      steps[runningIndex + 1] = steps[runningIndex + 1].copyWith(
-        status: AgentStatus.running,
-      );
+      if (updatedRun.status == AgentStatus.completed ||
+          updatedRun.status == AgentStatus.failed ||
+          updatedRun.status == AgentStatus.cancelled) {
+        _pollingTimer?.cancel();
+      }
+    } catch (e) {
+      // Ignore transient polling errors
     }
+  }
 
-    final isComplete = steps.every((s) => s.status == AgentStatus.completed);
+  Future<void> startRun(String goalId) async {
+    state = const AsyncLoading();
+    try {
+      final repository = ref.read(agentRepositoryProvider);
+      final run = await repository.createAgentRun(goalId, 'research_and_match');
+      
+      state = AsyncData(run);
+      _startPolling(run.id);
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
+  }
 
-    state = AsyncData(
-      currentState.copyWith(
-        steps: steps,
-        status: isComplete ? AgentStatus.completed : AgentStatus.running,
-      ),
-    );
+  Future<void> loadRun(String runId) async {
+    state = const AsyncLoading();
+    try {
+      final repository = ref.read(agentRepositoryProvider);
+      final run = await repository.getAgentRun(runId);
+      final events = await repository.getAgentRunEvents(runId);
+      
+      final updatedRun = run.copyWith(events: events);
+      state = AsyncData(updatedRun);
+
+      if (updatedRun.status != AgentStatus.completed &&
+          updatedRun.status != AgentStatus.failed &&
+          updatedRun.status != AgentStatus.cancelled) {
+        _startPolling(runId);
+      }
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      rethrow;
+    }
+  }
+
+  Future<void> cancelRun() async {
+    final current = state.value;
+    if (current == null) return;
+    
+    try {
+      final repository = ref.read(agentRepositoryProvider);
+      final run = await repository.cancelAgentRun(current.id);
+      
+      // Update state optimistically or wait for poll
+      state = AsyncData(run.copyWith(events: current.events));
+      _pollingTimer?.cancel();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  void stopPolling() {
+    _pollingTimer?.cancel();
   }
 }
 

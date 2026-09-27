@@ -32,8 +32,20 @@ def override_get_current_user():
 def mock_env_vars(monkeypatch):
     monkeypatch.setenv("SUPABASE_URL", "http://mock-supabase")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "mock-key")
-
-
+    
+    # Isolate LLM config
+    from app.core.config import get_settings
+    import app.services.llm_service as llms
+    original_provider = llms._provider
+    
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    get_settings.cache_clear()
+    llms._provider = None
+    
+    yield
+    
+    get_settings.cache_clear()
+    llms._provider = original_provider
 
 class TestOrchestrator:
     @pytest.mark.asyncio

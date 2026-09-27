@@ -10,15 +10,23 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/surface_card.dart';
 import '../../../core/widgets/app_states.dart';
 import '../../opportunities/presentation/providers/opportunity_provider.dart';
+import 'providers/application_provider.dart';
 
-class ApprovalScreen extends ConsumerWidget {
+class ApprovalScreen extends ConsumerStatefulWidget {
   const ApprovalScreen({super.key, required this.id});
 
   final String id;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final opportunityAsync = ref.watch(opportunityDetailProvider(id));
+  ConsumerState<ApprovalScreen> createState() => _ApprovalScreenState();
+}
+
+class _ApprovalScreenState extends ConsumerState<ApprovalScreen> {
+  bool _isApproving = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final opportunityAsync = ref.watch(opportunityDetailProvider(widget.id));
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -32,12 +40,7 @@ class ApprovalScreen extends ConsumerWidget {
       body: SafeArea(
         child: opportunityAsync.when(
           data: (opportunity) {
-            if (opportunity == null) {
-              return AppErrorState(
-                message: 'Could not find opportunity for approval.',
-                onRetry: () => context.pop(),
-              );
-            }
+
 
             return Column(
               children: [
@@ -180,10 +183,21 @@ class ApprovalScreen extends ConsumerWidget {
                   child: Column(
                     children: [
                       AppPrimaryButton(
-                        label: 'Approve & Continue',
-                        onPressed: () {
-                          // Simulated approval → go to tracker
-                          context.go(AppRoutes.applicationTracker);
+                        label: _isApproving ? 'Approving...' : 'Approve & Continue',
+                        onPressed: _isApproving ? null : () async {
+                          setState(() => _isApproving = true);
+                          final repo = ref.read(applicationRepositoryProvider);
+                          final app = await repo.createApplication(widget.id, 'submitted');
+                          if (!context.mounted) return;
+                          setState(() => _isApproving = false);
+                          if (app != null) {
+                            ref.invalidate(applicationsProvider);
+                            context.go(AppRoutes.applicationTracker);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Failed to submit application')),
+                            );
+                          }
                         },
                       ),
                       const SizedBox(height: AppSpacing.md),
@@ -200,7 +214,7 @@ class ApprovalScreen extends ConsumerWidget {
           loading: () => const AppLoadingState(),
           error: (error, stack) => AppErrorState(
             message: 'Failed to load details.',
-            onRetry: () => ref.refresh(opportunityDetailProvider(id)),
+            onRetry: () => ref.refresh(opportunityDetailProvider(widget.id)),
           ),
         ),
       ),

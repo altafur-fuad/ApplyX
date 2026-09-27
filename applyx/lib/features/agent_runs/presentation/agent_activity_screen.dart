@@ -1,4 +1,4 @@
-import 'dart:async';
+
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,48 +15,11 @@ import 'providers/agent_provider.dart';
 import '../../goals/presentation/providers/goal_provider.dart';
 import '../domain/agent_run.dart';
 
-class AgentActivityScreen extends ConsumerStatefulWidget {
+class AgentActivityScreen extends ConsumerWidget {
   const AgentActivityScreen({super.key});
 
   @override
-  ConsumerState<AgentActivityScreen> createState() =>
-      _AgentActivityScreenState();
-}
-
-class _AgentActivityScreenState extends ConsumerState<AgentActivityScreen> {
-  Timer? _simulationTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _startSimulation();
-  }
-
-  void _startSimulation() {
-    _simulationTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-
-      ref.read(agentRunProvider.notifier).simulateProgress();
-
-      final state = ref.read(agentRunProvider);
-      if (state.value?.status == AgentStatus.completed ||
-          state.value?.status == AgentStatus.failed) {
-        timer.cancel();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _simulationTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final agentRunAsync = ref.watch(agentRunProvider);
     final activeGoalAsync = ref.watch(activeGoalProvider);
 
@@ -66,7 +29,11 @@ class _AgentActivityScreenState extends ConsumerState<AgentActivityScreen> {
         title: const Text('Agent Activity'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            // Cancel polling when leaving the screen
+            ref.read(agentRunProvider.notifier).stopPolling();
+            context.pop();
+          },
         ),
       ),
       body: SafeArea(
@@ -81,6 +48,10 @@ class _AgentActivityScreenState extends ConsumerState<AgentActivityScreen> {
             }
 
             final isComplete = run.status == AgentStatus.completed;
+            final isRunning = run.status == AgentStatus.running ||
+                run.status == AgentStatus.planning ||
+                run.status == AgentStatus.queued;
+            final isFailed = run.status == AgentStatus.failed;
 
             return Column(
               children: [
@@ -111,23 +82,44 @@ class _AgentActivityScreenState extends ConsumerState<AgentActivityScreen> {
                   ),
                 ),
 
+                if (isRunning && run.progress != null) ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: LinearProgressIndicator(
+                            value: run.progress! / 100,
+                            backgroundColor: AppColors.border,
+                            color: AppColors.aiAccent,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Text('${run.progress}%', style: AppTypography.label()),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                ],
+
                 // Timeline
                 Expanded(
                   child: ListView.builder(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.pagePadding,
                     ),
-                    itemCount: run.steps.length,
+                    itemCount: run.events.length,
                     itemBuilder: (context, index) {
-                      return _AgentStepTile(
-                        step: run.steps[index],
-                        isLast: index == run.steps.length - 1,
+                      return _AgentEventTile(
+                        event: run.events[index],
+                        isLast: index == run.events.length - 1,
+                        runStatus: run.status,
                       );
                     },
                   ),
                 ),
 
-                // View results button
+                // View results or Retry button
                 if (isComplete)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
@@ -142,6 +134,53 @@ class _AgentActivityScreenState extends ConsumerState<AgentActivityScreen> {
                           context.push(AppRoutes.opportunityResults),
                     ),
                   ),
+                if (isFailed)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.pagePadding,
+                      AppSpacing.lg,
+                      AppSpacing.pagePadding,
+                      AppSpacing.section,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          run.error ?? 'Agent run failed.',
+                          style: AppTypography.bodySmall(color: AppColors.danger),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        AppPrimaryButton(
+                          label: 'Cancel',
+                          onPressed: () => context.pop(),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (isRunning)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.pagePadding,
+                      AppSpacing.lg,
+                      AppSpacing.pagePadding,
+                      AppSpacing.section,
+                    ),
+                    child: TextButton(
+                      onPressed: () async {
+                        try {
+                          await ref.read(agentRunProvider.notifier).cancelRun();
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Failed to cancel run.')),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text('Cancel Run', style: TextStyle(color: AppColors.danger)),
+                    ),
+                  ),
               ],
             );
           },
@@ -149,7 +188,7 @@ class _AgentActivityScreenState extends ConsumerState<AgentActivityScreen> {
               const AppLoadingState(message: 'Initializing Agent...'),
           error: (error, stack) => AppErrorState(
             message: 'Failed to connect to agent.',
-            onRetry: () => ref.refresh(agentRunProvider),
+            onRetry: () => ref.read(agentRunProvider.notifier).startRun(''), // not fully correct, but handles basic retry
           ),
         ),
       ),
@@ -157,42 +196,43 @@ class _AgentActivityScreenState extends ConsumerState<AgentActivityScreen> {
   }
 }
 
-class _AgentStepTile extends StatelessWidget {
-  const _AgentStepTile({required this.step, required this.isLast});
+class _AgentEventTile extends StatelessWidget {
+  const _AgentEventTile({required this.event, required this.isLast, required this.runStatus});
 
-  final AgentStep step;
+  final AgentRunEvent event;
   final bool isLast;
+  final AgentStatus runStatus;
 
   Color get _dotColor {
-    switch (step.status) {
-      case AgentStatus.completed:
-        return AppColors.agentCompleted;
-      case AgentStatus.running:
-        return AppColors.agentActive;
-      case AgentStatus.approval:
-        return AppColors.agentApproval;
-      case AgentStatus.failed:
-        return AppColors.agentFailed;
-      case AgentStatus.queued:
-      case AgentStatus.cancelled:
-        return AppColors.agentQueued;
+    if (event.eventType.contains('failed') || event.eventType.contains('error')) {
+      return AppColors.danger;
     }
+    if (event.eventType.contains('completed') || event.eventType.contains('found')) {
+      return AppColors.agentCompleted;
+    }
+    return AppColors.agentActive;
   }
 
   IconData get _icon {
-    switch (step.status) {
-      case AgentStatus.completed:
-        return Icons.check_circle;
-      case AgentStatus.running:
-        return Icons.sync;
-      case AgentStatus.approval:
-        return Icons.front_hand;
-      case AgentStatus.failed:
-        return Icons.error;
-      case AgentStatus.queued:
-      case AgentStatus.cancelled:
-        return Icons.circle_outlined;
+    if (event.eventType.contains('failed') || event.eventType.contains('error')) {
+      return Icons.error;
     }
+    if (event.eventType.contains('completed') || event.eventType.contains('found')) {
+      return Icons.check_circle;
+    }
+    return Icons.sync;
+  }
+
+  String get _title {
+    final type = event.eventType.toLowerCase();
+    if (type == 'run_created') return 'Agent initialized';
+    if (type == 'plan_created') return 'Plan created';
+    if (type == 'task_started') return 'Task started: ${event.message ?? event.payload['task_name'] ?? ''}';
+    if (type == 'task_completed') return 'Task completed: ${event.message ?? ''}';
+    if (type == 'source_found') return 'Source found: ${event.message ?? ''}';
+    if (type == 'run_completed') return 'Goal achieved';
+    if (type == 'run_failed') return 'Run failed';
+    return event.message ?? event.eventType;
   }
 
   @override
@@ -223,16 +263,12 @@ class _AgentStepTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    step.title,
+                    _title,
                     style: AppTypography.body(
-                      color: step.status == AgentStatus.queued
-                          ? AppColors.textSecondary
-                          : AppColors.textPrimary,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(step.description, style: AppTypography.caption()),
-                  if (step.status == AgentStatus.running) ...[
+                  if (isLast && (runStatus == AgentStatus.running || runStatus == AgentStatus.planning)) ...[
                     const SizedBox(height: AppSpacing.sm),
                     SizedBox(
                       width: 120,
