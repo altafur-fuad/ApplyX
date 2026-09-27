@@ -11,7 +11,7 @@ from app.agents.models import (
     EvidenceStatus,
     TaskStatus,
 )
-from app.agents.planner import MockPlanner
+from app.agents.planner import get_planner_agent
 from app.agents.verification import VerificationService
 import pytest
 
@@ -61,7 +61,7 @@ class TestVerification:
 class TestPlanner:
     @pytest.mark.asyncio
     async def test_deterministic_plan_generation(self):
-        planner = MockPlanner()
+        planner = get_planner_agent()
         plan = await planner.create_plan(
             raw_goal="Find me an internship",
             structured_constraints={"skills": ["python"]},
@@ -75,7 +75,7 @@ class TestPlanner:
 
     @pytest.mark.asyncio
     async def test_dependency_ordering(self):
-        planner = MockPlanner()
+        planner = get_planner_agent()
         plan = await planner.create_plan(
             raw_goal="Find me an internship",
             structured_constraints={"skills": ["python"]},

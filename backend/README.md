@@ -230,3 +230,20 @@ python scripts/search_smoke_test.py --real
 - **Deduplication**: Results are cleanly extracted, retaining the canonical source domain.
 - **Evidence Preservation**: Every opportunity preserves the `source_url`, `source_name`, and `retrieved_at` timestamps to ensure verification is possible. No missing information is fabricated.
 - **Execution Guardrails**: The search adapter securely passes back content strictly as data strings. Web content is considered untrusted and never interpreted as code.
+
+## Phase 6 Provider-Agnostic Agent Execution
+
+The agent runtime is now fully decoupled from any specific LLM or search provider.
+All agent classes (Planner, Research, Eligibility, Profile Fit) use the generic LLM abstractions rather than concrete provider implementations.
+
+- **LLM Abstraction**: Agents rely strictly on `LLMRequest` and `LLMResponse` models and the `LLMProvider` interface.
+- **Search Abstraction**: The `web_search` tool interacts exclusively through the `SearchProvider` interface.
+- **Mock Mode**: By default, the system operates in a fully deterministic mock mode (`LLM_PROVIDER=mock`, `SEARCH_PROVIDER=mock`) without making any external API calls. This enables stable end-to-end workflow execution in tests.
+- **Real-Provider Configuration Boundary**: Switching to a real provider is a matter of changing environment variables (e.g., `LLM_PROVIDER=openai`). No business logic or agent code requires modification.
+- **End-to-End Execution Flow**:
+  Goal -> Planner -> Research -> Eligibility -> Profile Fit -> Verification -> Approval Boundary. This sequence executes deterministically using generic abstractions.
+- **Approval Boundary**: The orchestrator strictly respects the configured risk levels and halts on `HIGH` or `CRITICAL` actions lacking approval.
+- **Test Commands**:
+  ```powershell
+  python -m pytest
+  ```

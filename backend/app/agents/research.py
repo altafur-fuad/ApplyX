@@ -26,55 +26,7 @@ class BaseResearchAgent(abc.ABC):
     async def execute(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         ...
 
-class MockResearchAgent(BaseResearchAgent):
-    """Deterministic research agent for Phase 3."""
-    async def execute(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        constraints = input_data.get("constraints", {})
-        skills = constraints.get("skills", [])
-        opp_types = constraints.get("opportunity_types", ["internship"])
-
-        now = datetime.now(timezone.utc)
-
-        # Sample deterministic results
-        opportunities = [
-            {
-                "title": f"Sample {opp_types[0].title() if opp_types else 'Opportunity'} - {skills[0] if skills else 'General'}",
-                "organization": "Example Corp",
-                "type": opp_types[0] if opp_types else "internship",
-                "location": "Remote",
-                "remote_status": "remote" if constraints.get("remote") else "onsite",
-                "source_url": "https://example.com/opportunity/1",
-                "source_name": "example_board",
-                "fetched_at": now.isoformat(),
-                "description": f"A sample opportunity for {', '.join(skills) if skills else 'general applicants'}.",
-                "requirements": skills,
-            }
-        ]
-
-        evidence = [
-            Evidence(
-                claim=f"Opportunity found: {opportunities[0]['title']}",
-                status=EvidenceStatus.CONFIRMED,
-                source_url=opportunities[0]["source_url"],
-                retrieved_at=now,
-                confidence=ConfidenceLevel.HIGH,
-                evidence_type="opportunity_listing",
-            ).model_dump(mode="json")
-        ]
-
-        logger.info(
-            "mock_research_complete opportunities_found=%d",
-            len(opportunities),
-        )
-
-        return {
-            "opportunities": opportunities,
-            "evidence": evidence,
-            "sources_checked": ["example_board"],
-        }
-
-
-class RealLLMResearchAgent(BaseResearchAgent):
+class ResearchAgent(BaseResearchAgent):
     async def execute(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         provider = get_llm_provider()
         registry = get_tool_registry()
@@ -152,7 +104,4 @@ Do NOT invent opportunities or evidence.
         }
 
 def get_research_agent() -> BaseResearchAgent:
-    provider = get_llm_provider()
-    if provider.provider_name() == "mock":
-        return MockResearchAgent()
-    return RealLLMResearchAgent()
+    return ResearchAgent()
