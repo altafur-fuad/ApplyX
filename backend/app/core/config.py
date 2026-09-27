@@ -25,6 +25,15 @@ class Settings(BaseSettings):
     llm_fallback_api_key: Optional[str] = Field(None)
     llm_fallback_base_url: Optional[str] = Field(None)
 
+    # Provider-agnostic Search Configuration
+    search_provider: str = Field("mock", description="Search Provider: mock, tavily")
+    search_api_key: Optional[str] = Field(None, description="Search API Key")
+    search_base_url: Optional[str] = Field(None, description="Search Base URL")
+
+    search_fallback_provider: Optional[str] = Field("mock", description="Fallback search provider")
+    search_fallback_api_key: Optional[str] = Field(None)
+    search_fallback_base_url: Optional[str] = Field(None)
+
     # Legacy / specific Configuration
     openai_api_key: Optional[str] = Field(None, description="OpenAI API Key")
     openai_model: Optional[str] = Field(None, description="OpenAI Model Name (e.g., gpt-4o)")

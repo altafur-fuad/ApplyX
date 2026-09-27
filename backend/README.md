@@ -196,3 +196,37 @@ To run a **REAL** network test against your explicitly configured provider, use 
 ```powershell
 python scripts/llm_smoke_test.py --real
 ```
+
+## Provider-Agnostic Search Architecture
+
+The backend implements a generic `SearchProvider` abstraction to decouple research from specific search engines (Tavily, Google, etc.). This ensures that ApplyX can securely retrieve opportunities without vendor lock-in.
+
+### Note: Search Provider ≠ LLM Provider
+Search providers and LLM providers are strictly separate abstractions. Switching the LLM provider does not affect the search provider, and vice versa.
+
+### Supported Search Providers
+- **mock**: Deterministic offline mock data, ideal for tests.
+- **tavily**: Official API integration for Tavily search. Minimal footprint utilizing `httpx`.
+
+### Configuration
+```env
+SEARCH_PROVIDER=tavily
+SEARCH_API_KEY=your_tavily_key
+SEARCH_BASE_URL=https://api.tavily.com # Optional override
+```
+
+### Search Diagnostics & Smoke Test
+You can verify your search credentials securely without calling APIs (dry-run):
+```powershell
+python scripts/search_smoke_test.py
+```
+
+To run a single real search query:
+```powershell
+python scripts/search_smoke_test.py --real
+```
+
+### Research Safety & Evidence Preservation
+- **Deduplication**: Results are cleanly extracted, retaining the canonical source domain.
+- **Evidence Preservation**: Every opportunity preserves the `source_url`, `source_name`, and `retrieved_at` timestamps to ensure verification is possible. No missing information is fabricated.
+- **Execution Guardrails**: The search adapter securely passes back content strictly as data strings. Web content is considered untrusted and never interpreted as code.
