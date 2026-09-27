@@ -1,0 +1,13 @@
+{
+    "venvPath": "e:\\ApplyX\\backend",
+    "venv": ".venv",
+    "pythonVersion": "3.13",
+    "pythonPlatform": "Windows",
+    "include": ["app", "tests"],
+    "exclude": [
+        "**/__pycache__",
+        ".venv"
+    ],
+    "reportMissingImports": true,
+    "reportMissingTypeStubs": false
+}
