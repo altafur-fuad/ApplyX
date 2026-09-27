@@ -32,12 +32,7 @@ class ApprovalScreen extends ConsumerWidget {
       body: SafeArea(
         child: opportunityAsync.when(
           data: (opportunity) {
-            if (opportunity == null) {
-              return AppErrorState(
-                message: 'Could not find opportunity for approval.',
-                onRetry: () => context.pop(),
-              );
-            }
+
 
             return Column(
               children: [

@@ -15,7 +15,7 @@ import '../../goals/presentation/providers/goal_provider.dart';
 import '../../opportunities/presentation/providers/opportunity_provider.dart';
 import '../../applications/presentation/providers/application_provider.dart';
 
-import '../../opportunities/domain/opportunity.dart';
+
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -248,13 +248,7 @@ class HomeScreen extends ConsumerWidget {
                           id: opp.id,
                           title: opp.title,
                           org: opp.organization,
-                          location: opp.location,
-                          match: opp.matchLevel == MatchLevel.strong
-                              ? 'Strong Match'
-                              : 'Needs Review',
-                          matchColor: opp.matchLevel == MatchLevel.strong
-                              ? AppColors.success
-                              : AppColors.warning,
+                          location: opp.location ?? '',
                         ),
                       );
                     }, childCount: recentOps.length),
@@ -398,16 +392,12 @@ class _OpportunityMiniCard extends StatelessWidget {
     required this.title,
     required this.org,
     required this.location,
-    required this.match,
-    required this.matchColor,
   });
 
   final String id;
   final String title;
   final String org;
   final String location;
-  final String match;
-  final Color matchColor;
 
   @override
   Widget build(BuildContext context) {
@@ -426,7 +416,6 @@ class _OpportunityMiniCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              StatusChip(label: match, color: matchColor),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),

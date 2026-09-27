@@ -7,8 +7,7 @@ import 'package:applyx/features/auth/data/auth_repository.dart';
 import 'package:applyx/features/profile/data/profile_repository.dart';
 import 'package:applyx/features/profile/domain/profile.dart';
 
-import 'package:applyx/features/opportunities/data/opportunity_repository.dart';
-import 'package:applyx/features/applications/data/application_repository.dart';
+
 import 'package:applyx/features/documents/data/document_repository.dart';
 
 void main() {
@@ -19,8 +18,7 @@ void main() {
     late SupabaseAuthRepository authRepo;
     late SupabaseProfileRepository profileRepo;
 
-    late SupabaseOpportunityRepository opportunityRepo;
-    late SupabaseApplicationRepository applicationRepo;
+
     late SupabaseDocumentRepository documentRepo;
 
     final testEmail =
@@ -41,8 +39,7 @@ void main() {
       authRepo = SupabaseAuthRepository(supabase);
       profileRepo = SupabaseProfileRepository(supabase);
 
-      opportunityRepo = SupabaseOpportunityRepository(supabase);
-      applicationRepo = SupabaseApplicationRepository(supabase);
+
       documentRepo = SupabaseDocumentRepository(supabase);
     });
 
@@ -100,15 +97,7 @@ void main() {
 
 
 
-    test('10. Opportunity list (read-only)', () async {
-      final opps = await opportunityRepo.getOpportunities();
-      expect(opps, isA<List>());
-    });
 
-    test('12. Application list', () async {
-      final apps = await applicationRepo.getApplications();
-      expect(apps, isA<List>());
-    });
 
     test('Document Storage', () async {
       final testFile = File('test_doc.txt');

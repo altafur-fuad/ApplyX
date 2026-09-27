@@ -69,6 +69,17 @@ class PaginatedOpportunities(BaseModel):
     items: List[OpportunityResponse]
     next_cursor: Optional[str] = None
 
+class EvidenceResponse(BaseModel):
+    claim: str
+    source_url: Optional[str] = None
+
+class OpportunityMatchResponse(BaseModel):
+    eligibility_status: str
+    fit_reasons: List[str]
+    missing_requirements: List[str]
+    evidence: List[EvidenceResponse]
+
+
 # Applications
 class ApplicationCreate(BaseModel):
     opportunity_id: UUID

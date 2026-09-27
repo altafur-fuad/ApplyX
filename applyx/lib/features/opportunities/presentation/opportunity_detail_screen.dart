@@ -11,7 +11,7 @@ import '../../../core/widgets/status_chip.dart';
 import '../../../core/widgets/surface_card.dart';
 import '../../../core/widgets/app_states.dart';
 import 'providers/opportunity_provider.dart';
-import '../domain/opportunity.dart';
+
 
 class OpportunityDetailScreen extends ConsumerWidget {
   const OpportunityDetailScreen({super.key, required this.id});
@@ -21,6 +21,8 @@ class OpportunityDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final opportunityAsync = ref.watch(opportunityDetailProvider(id));
+    final matchAsync = ref.watch(opportunityMatchProvider(id));
+    final saveState = ref.watch(saveOpportunityProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -32,23 +34,39 @@ class OpportunityDetailScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.bookmark_outline),
-            onPressed: () {},
+            icon: saveState.isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  )
+                : const Icon(Icons.bookmark_outline),
+            onPressed: saveState.isLoading
+                ? null
+                : () async {
+                    await ref.read(saveOpportunityProvider.notifier).save(id);
+                    if (context.mounted) {
+                      final error = ref.read(saveOpportunityProvider).error;
+                      if (error != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Failed to save opportunity')),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Opportunity saved!')),
+                        );
+                      }
+                    }
+                  },
           ),
         ],
       ),
       body: SafeArea(
         child: opportunityAsync.when(
           data: (opportunity) {
-            if (opportunity == null) {
-              return AppErrorState(
-                message: 'Opportunity not found.',
-                onRetry: () => context.pop(),
-              );
-            }
-
-            final isStrongMatch = opportunity.matchLevel == MatchLevel.strong;
-
             return Column(
               children: [
                 Expanded(
@@ -71,13 +89,15 @@ class OpportunityDetailScreen extends ConsumerWidget {
                                 style: AppTypography.h2(),
                               ),
                             ),
-                            StatusChip(
-                              label: isStrongMatch
-                                  ? 'Strong Match'
-                                  : 'Needs Review',
-                              color: isStrongMatch
-                                  ? AppColors.success
-                                  : AppColors.warning,
+                            matchAsync.maybeWhen(
+                              data: (match) {
+                                final isEligible = match.eligibilityStatus == 'eligible' || match.eligibilityStatus == 'likely_eligible';
+                                return StatusChip(
+                                  label: isEligible ? 'Eligible' : 'Needs Review',
+                                  color: isEligible ? AppColors.success : AppColors.warning,
+                                );
+                              },
+                              orElse: () => const SizedBox.shrink(),
                             ),
                           ],
                         ),
@@ -92,44 +112,91 @@ class OpportunityDetailScreen extends ConsumerWidget {
                               Icons.business_outlined,
                               opportunity.organization,
                             ),
-                            _infoChip(
-                              Icons.location_on_outlined,
-                              opportunity.location,
-                            ),
+                            if (opportunity.location != null)
+                              _infoChip(
+                                Icons.location_on_outlined,
+                                opportunity.location!,
+                              ),
                             if (opportunity.deadline != null)
                               _infoChip(
                                 Icons.calendar_today_outlined,
-                                opportunity.deadline!,
+                                opportunity.deadline!.toLocal().toString().split(' ')[0],
                               ),
                           ],
                         ),
 
                         const SizedBox(height: AppSpacing.xxl),
 
-                        // Overview
-                        _sectionTitle('Overview'),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          '${opportunity.organization} is looking for a motivated candidate to join their team. You will work on exciting projects and collaborate with experienced professionals.',
-                          style: AppTypography.body(
-                            color: AppColors.textSecondary,
+                        if (opportunity.description != null && opportunity.description!.isNotEmpty) ...[
+                          _sectionTitle('Overview'),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            opportunity.description!,
+                            style: AppTypography.body(
+                              color: AppColors.textSecondary,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: AppSpacing.xl),
+                        ],
 
-                        const SizedBox(height: AppSpacing.xl),
-
-                        // Why this matches
-                        _sectionTitle('Why this matches'),
-                        const SizedBox(height: AppSpacing.sm),
-                        SurfaceCard(
-                          color: AppColors.surfaceElevated,
-                          child: Column(
+                        // Match Analysis
+                        matchAsync.when(
+                          data: (match) => Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [_matchRow(opportunity.reason)],
+                            children: [
+                              if (match.fitReasons.isNotEmpty) ...[
+                                _sectionTitle('Why this matches'),
+                                const SizedBox(height: AppSpacing.sm),
+                                SurfaceCard(
+                                  color: AppColors.surfaceElevated,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: match.fitReasons.map((reason) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 8.0),
+                                      child: _matchRow(reason, Icons.check_circle, AppColors.success),
+                                    )).toList(),
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.xl),
+                              ],
+                              if (match.missingRequirements.isNotEmpty) ...[
+                                _sectionTitle('Missing Requirements'),
+                                const SizedBox(height: AppSpacing.sm),
+                                SurfaceCard(
+                                  color: AppColors.surfaceElevated,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: match.missingRequirements.map((req) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 8.0),
+                                      child: _matchRow(req, Icons.warning, AppColors.warning),
+                                    )).toList(),
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.xl),
+                              ],
+                              if (match.evidence.isNotEmpty) ...[
+                                _sectionTitle('Evidence'),
+                                const SizedBox(height: AppSpacing.sm),
+                                SurfaceCard(
+                                  color: AppColors.surfaceElevated,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: match.evidence.map((ev) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 8.0),
+                                      child: _matchRow(ev.claim, Icons.info_outline, AppColors.aiAccent),
+                                    )).toList(),
+                                  ),
+                                ),
+                                const SizedBox(height: AppSpacing.xl),
+                              ],
+                            ],
                           ),
+                          loading: () => const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 20),
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                          error: (err, st) => const SizedBox.shrink(),
                         ),
-
-                        const SizedBox(height: AppSpacing.xl),
 
                         // Source
                         _sectionTitle('Source'),
@@ -153,11 +220,6 @@ class OpportunityDetailScreen extends ConsumerWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Recently fetched',
-                                style: AppTypography.caption(),
                               ),
                             ],
                           ),
@@ -214,11 +276,11 @@ class OpportunityDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _matchRow(String text) {
+  Widget _matchRow(String text, IconData icon, Color iconColor) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.auto_awesome, size: 16, color: AppColors.aiAccent),
+        Icon(icon, size: 16, color: iconColor),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
