@@ -645,3 +645,14 @@ it belongs on the backend.
 Use a stateful workflow with explicit tasks, tools, validation, approvals and persistence. This makes the system easier to test, debug, explain and extend.
 
 ---
+
+## 20. Flutter ↔ FastAPI Integration
+
+### API Base URL Setup
+Flutter retrieves the API base URL from the `API_BASE_URL` variable in the `.env` file using the `flutter_dotenv` package. If this variable is missing or empty, Flutter falls back to `http://10.0.2.2:8000/v1`, which corresponds to the standard loopback address for the Android emulator accessing the local FastAPI instance on port 8000.
+
+### JWT Authentication
+The application leverages the existing Supabase SDK for user authentication.
+- **Obtaining the JWT:** Flutter accesses the user's active session token dynamically at request-time by calling `Supabase.instance.client.auth.currentSession?.accessToken`.
+- **Sending the JWT:** The reusable `ApiClient` dynamically intercepts each outgoing HTTP request to the FastAPI backend and injects the token into the headers as `Authorization: Bearer <supabase_access_token>`. 
+- **Error Handling:** FastAPI responses are processed by `ApiClient`, decoding JSON success payloads, and converting HTTP and FastAPI error envelopes into typed `ApiException` objects.
