@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.routes import health, profiles, goals, opportunities, applications, agent_runs
+from app.api.routes import health, profiles, goals, opportunities, applications, agent_runs, documents, approvals
 
 api_router = APIRouter()
 api_router.include_router(health.router, prefix="/health", tags=["health"])
@@ -8,3 +8,5 @@ api_router.include_router(goals.router, prefix="/goals", tags=["goals"])
 api_router.include_router(opportunities.router, prefix="/opportunities", tags=["opportunities"])
 api_router.include_router(applications.router, prefix="/applications", tags=["applications"])
 api_router.include_router(agent_runs.router, prefix="/agent-runs", tags=["agent-runs"])
+api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
+api_router.include_router(approvals.router, prefix="/approvals", tags=["approvals"])

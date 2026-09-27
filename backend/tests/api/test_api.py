@@ -35,7 +35,7 @@ def test_auth_valid_token(mock_supabase_client):
     mock_supabase_client.table().select().eq().execute.return_value = MagicMock(data=[{"id": str(uuid.uuid4()), "user_id": user_id, "skills_json": [], "links_json": {}, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}])
     
     res = client.get("/api/v1/profiles/me", headers={"Authorization": "Bearer valid_token"})
-    assert res.status_code == 200
+    if res.status_code != 200: print(res.json()); assert res.status_code == 200
     assert res.json()["user_id"] == user_id
 
 def test_profile_update(mock_supabase_client):
@@ -48,7 +48,7 @@ def test_profile_update(mock_supabase_client):
     mock_supabase_client.table().insert().execute.return_value = MagicMock(data=[{"id": str(uuid.uuid4()), "user_id": user_id, "full_name": "Test", "skills_json": [], "links_json": {}, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}])
     
     res = client.put("/api/v1/profiles/me", json={"full_name": "Test"}, headers={"Authorization": "Bearer valid_token"})
-    assert res.status_code == 200
+    if res.status_code != 200: print(res.json()); assert res.status_code == 200
     assert res.json()["full_name"] == "Test"
 
 def test_goals(mock_supabase_client):
@@ -62,12 +62,12 @@ def test_goals(mock_supabase_client):
     
     # Create goal
     res = client.post("/api/v1/goals", json={"title": "G1", "raw_goal": "rg"}, headers={"Authorization": "Bearer valid_token"})
-    assert res.status_code == 200
+    if res.status_code != 200: print(res.json()); assert res.status_code == 200
     
     # List goals
     mock_supabase_client.table().select().eq().execute.return_value = MagicMock(data=[{"id": goal_id, "user_id": user_id, "title": "G1", "raw_goal": "rg", "structured_constraints_json": {}, "status": "active", "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}])
     res = client.get("/api/v1/goals", headers={"Authorization": "Bearer valid_token"})
-    assert res.status_code == 200
+    if res.status_code != 200: print(res.json()); assert res.status_code == 200
     assert len(res.json()) == 1
 
 def test_opportunities(mock_supabase_client):
@@ -76,7 +76,7 @@ def test_opportunities(mock_supabase_client):
     
     # Read is public
     res = client.get("/api/v1/opportunities")
-    assert res.status_code == 200
+    if res.status_code != 200: print(res.json()); assert res.status_code == 200
     assert len(res.json()["items"]) == 1
 
 def test_save_opportunity(mock_supabase_client):
@@ -90,7 +90,7 @@ def test_save_opportunity(mock_supabase_client):
     mock_supabase_client.table().insert().execute.return_value = MagicMock(data=[{"user_id": user_id, "opportunity_id": opp_id}])
     
     res = client.post(f"/api/v1/opportunities/{opp_id}/save", headers={"Authorization": "Bearer valid_token"})
-    assert res.status_code == 200
+    if res.status_code != 200: print(res.json()); assert res.status_code == 200
 
 def test_applications(mock_supabase_client):
     user_id = str(uuid.uuid4())
@@ -103,8 +103,42 @@ def test_applications(mock_supabase_client):
     
     mock_supabase_client.table().select().eq().execute.return_value = MagicMock(data=[{"id": opp_id}])
     mock_supabase_client.table().insert().execute.return_value = MagicMock(data=[{"id": app_id, "user_id": user_id, "opportunity_id": opp_id, "status": "draft", "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}])
+    mock_supabase_client.table().select().eq().execute.side_effect = [
+        MagicMock(data=[{"id": opp_id}]),  # get_opportunity
+        MagicMock(data=[{"id": app_id, "user_id": user_id, "opportunity_id": opp_id, "status": "draft", "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z", "opportunities": {"title": "T", "organization": "O"}}]) # fetch created
+    ]
     
     res = client.post("/api/v1/applications", json={"opportunity_id": opp_id}, headers={"Authorization": "Bearer valid_token"})
-    assert res.status_code == 200
+    if res.status_code != 200: print(res.json()); assert res.status_code == 200
     assert res.json()["status"] == "draft"
 
+def test_documents(mock_supabase_client):
+    user_id = str(uuid.uuid4())
+    user_mock = MagicMock()
+    user_mock.user.id = user_id
+    mock_supabase_client.auth.get_user.return_value = user_mock
+    
+    doc_id = str(uuid.uuid4())
+    app_id = str(uuid.uuid4())
+    
+    mock_supabase_client.table().insert().execute.return_value = MagicMock(data=[{"id": doc_id, "user_id": user_id, "application_id": app_id, "kind": "resume", "title": "Draft", "content": "test", "version": 1, "is_draft": True, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}])
+    
+    res = client.post("/api/v1/documents/draft", json={"application_id": app_id, "kind": "resume", "instruction": "test"}, headers={"Authorization": "Bearer valid_token"})
+    if res.status_code != 200: print(res.json()); assert res.status_code == 200
+    assert res.json()["kind"] == "resume"
+
+def test_approvals(mock_supabase_client):
+    user_id = str(uuid.uuid4())
+    user_mock = MagicMock()
+    user_mock.user.id = user_id
+    mock_supabase_client.auth.get_user.return_value = user_mock
+    
+    approval_id = str(uuid.uuid4())
+    run_id = str(uuid.uuid4())
+    
+    mock_supabase_client.table().select().eq().eq().execute.return_value = MagicMock(data=[{"id": approval_id, "user_id": user_id, "agent_run_id": run_id, "action_type": "submit", "target_json": {}, "preview_json": {}, "risk_level": "medium", "status": "pending", "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}])
+    mock_supabase_client.table().update().eq().eq().execute.return_value = MagicMock(data=[{"id": approval_id, "user_id": user_id, "agent_run_id": run_id, "action_type": "submit", "target_json": {}, "preview_json": {}, "risk_level": "medium", "status": "approved", "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}])
+    
+    res = client.post(f"/api/v1/approvals/{approval_id}/approve", headers={"Authorization": "Bearer valid_token"})
+    if res.status_code != 200: print(res.json()); assert res.status_code == 200
+    assert res.json()["status"] == "approved"
