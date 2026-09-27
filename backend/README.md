@@ -146,5 +146,104 @@ The backend has been upgraded to Phase 4, transitioning from deterministic mocks
 - **Web Research**: The Research Agent is powered by an LLM loop using `Tool Calling` (`tools` parameter) to formulate queries and extract real-world opportunities dynamically.
 - **Eligibility & Profile Fit**: Specialist agents process the authenticated profile against normalized opportunity requirements to provide evidence-backed, reasoned analysis instead of deterministic matching.
 - **Fallback safety**: Missing keys cleanly fall back to Phase 3 Mock agents without crashing.
-- **Background Execution**: Agent orchestration runs asynchronously without blocking HTTP requests.
+### Background Execution
+- Agent orchestration runs asynchronously without blocking HTTP requests.
 
+## Phase 6 Architecture: Provider-Agnostic LLM Layer
+
+The backend implements a generic, provider-neutral LLM abstraction layer to ensure the application is not locked to a single AI vendor.
+
+### Supported Providers
+- **mock**: Deterministic local testing, no API key required.
+- **openai**: Official OpenAI SDK integration (GPT-4o, etc).
+- **gemini**: Google Gemini integration using OpenAI compatibility.
+- **openai_compatible**: Generic adapter for any HTTP endpoint matching the OpenAI schema (e.g. Local models, OpenRouter, Groq).
+
+### Configuration
+Change providers via `.env` variables (no code changes required):
+```env
+LLM_PROVIDER=openai
+LLM_MODEL=gpt-4o-mini
+LLM_API_KEY=your_key_here
+LLM_BASE_URL= # Required only for openai_compatible
+```
+
+### Capabilities
+The generic interface safely reports capabilities:
+- `structured_output`
+- `tool_calling`
+- `json_mode`
+
+### Fallback Semantics
+If primary authentication fails, the system safely falls back using:
+- `LLM_FALLBACK_PROVIDER=mock`
+
+### Testing & Security
+Tests automatically execute within a secure, isolated `mock` environment, preventing accidental usage of real developer credentials inside test suites. 
+Tests never expose API keys or secrets in logs, messages, or diagnostics.
+
+### Safe Diagnostics & Smoke Test
+You can safely run diagnostics on your provider configuration without making external network calls (Dry-Run mode):
+
+```powershell
+python scripts/llm_smoke_test.py
+```
+
+This will print the configured provider, model, local initialization state, and capability mappings without hitting the API.
+
+To run a **REAL** network test against your explicitly configured provider, use the `--real` flag. This will send exactly ONE minimal prompt ("Reply with exactly: ApplyX smoke test successful") and print usage metadata and any normalized errors (like quotas or auth failures).
+
+```powershell
+python scripts/llm_smoke_test.py --real
+```
+
+## Provider-Agnostic Search Architecture
+
+The backend implements a generic `SearchProvider` abstraction to decouple research from specific search engines (Tavily, Google, etc.). This ensures that ApplyX can securely retrieve opportunities without vendor lock-in.
+
+### Note: Search Provider ≠ LLM Provider
+Search providers and LLM providers are strictly separate abstractions. Switching the LLM provider does not affect the search provider, and vice versa.
+
+### Supported Search Providers
+- **mock**: Deterministic offline mock data, ideal for tests.
+- **tavily**: Official API integration for Tavily search. Minimal footprint utilizing `httpx`.
+
+### Configuration
+```env
+SEARCH_PROVIDER=tavily
+SEARCH_API_KEY=your_tavily_key
+SEARCH_BASE_URL=https://api.tavily.com # Optional override
+```
+
+### Search Diagnostics & Smoke Test
+You can verify your search credentials securely without calling APIs (dry-run):
+```powershell
+python scripts/search_smoke_test.py
+```
+
+To run a single real search query:
+```powershell
+python scripts/search_smoke_test.py --real
+```
+
+### Research Safety & Evidence Preservation
+- **Deduplication**: Results are cleanly extracted, retaining the canonical source domain.
+- **Evidence Preservation**: Every opportunity preserves the `source_url`, `source_name`, and `retrieved_at` timestamps to ensure verification is possible. No missing information is fabricated.
+- **Execution Guardrails**: The search adapter securely passes back content strictly as data strings. Web content is considered untrusted and never interpreted as code.
+
+## Phase 6 Provider-Agnostic Agent Execution
+
+The agent runtime is now fully decoupled from any specific LLM or search provider.
+All agent classes (Planner, Research, Eligibility, Profile Fit) use the generic LLM abstractions rather than concrete provider implementations.
+
+- **LLM Abstraction**: Agents rely strictly on `LLMRequest` and `LLMResponse` models and the `LLMProvider` interface.
+- **Search Abstraction**: The `web_search` tool interacts exclusively through the `SearchProvider` interface.
+- **Mock Mode**: By default, the system operates in a fully deterministic mock mode (`LLM_PROVIDER=mock`, `SEARCH_PROVIDER=mock`) without making any external API calls. This enables stable end-to-end workflow execution in tests.
+- **Real-Provider Configuration Boundary**: Switching to a real provider is a matter of changing environment variables (e.g., `LLM_PROVIDER=openai`). No business logic or agent code requires modification.
+- **End-to-End Execution Flow**:
+  Goal -> Planner -> Research -> Eligibility -> Profile Fit -> Verification -> Approval Boundary. This sequence executes deterministically using generic abstractions.
+- **Approval Boundary**: The orchestrator strictly respects the configured risk levels and halts on `HIGH` or `CRITICAL` actions lacking approval.
+- **Test Commands**:
+  ```powershell
+  python -m pytest
+  ```

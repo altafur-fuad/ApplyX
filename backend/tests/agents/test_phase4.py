@@ -15,38 +15,41 @@ def mock_env_vars(monkeypatch):
 @pytest.fixture(autouse=True)
 def isolate_config(monkeypatch):
     from app.core.config import get_settings
-    import app.services.llm_service as llms
+    import app.services.llm.factory as llm_factory
     
     # Store the original provider to restore later
-    original_provider = llms._provider
+    original_provider = llm_factory._provider_cache
     
     # Force the key to empty so tests default to mock
     monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
     get_settings.cache_clear()
-    llms._provider = None
+    llm_factory._provider_cache = None
     
     yield
     
     get_settings.cache_clear()
-    llms._provider = original_provider
+    llm_factory._provider_cache = original_provider
 
 @pytest.mark.asyncio
 async def test_llm_provider_config(monkeypatch):
     from app.core.config import get_settings
-    import app.services.llm_service as llms
+    import app.services.llm.factory as llm_factory
     
     # Missing API KEY -> Mock
     monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
     get_settings.cache_clear()
-    monkeypatch.setattr(llms, "_provider", None)
-    provider = get_llm_provider()
+    monkeypatch.setattr(llm_factory, "_provider_cache", None)
+    provider = llm_factory.get_llm_provider()
     assert provider.provider_name() == "mock"
     
     # Has API KEY -> Real
+    monkeypatch.setenv("LLM_PROVIDER", "openai")
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     get_settings.cache_clear()
-    monkeypatch.setattr(llms, "_provider", None)
-    provider = get_llm_provider()
+    monkeypatch.setattr(llm_factory, "_provider_cache", None)
+    provider = llm_factory.get_llm_provider()
     assert provider.provider_name() == "openai"
 
 @pytest.mark.asyncio

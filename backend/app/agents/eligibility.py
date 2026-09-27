@@ -28,72 +28,6 @@ class BaseEligibilityAgent(abc.ABC):
     ) -> Dict[str, Any]:
         ...
 
-class MockEligibilityAgent(BaseEligibilityAgent):
-    """Deterministic eligibility analysis for Phase 3."""
-    async def execute(
-        self,
-        opportunities: List[Dict[str, Any]],
-        profile: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        user_skills = {
-            s.lower()
-            for s in (profile.get("skills") or profile.get("skills_json") or [])
-        }
-
-        results = []
-        evidence: list[dict[str, Any]] = []
-
-        for opp in opportunities:
-            requirements = [
-                r.lower()
-                for r in (opp.get("requirements") or opp.get("requirements_json") or [])
-            ]
-
-            met = [r for r in requirements if r in user_skills]
-            missing = [r for r in requirements if r not in user_skills]
-
-            if not requirements:
-                status = "insufficient_evidence"
-                confidence = ConfidenceLevel.INSUFFICIENT
-            elif len(met) == len(requirements):
-                status = "likely_eligible"
-                confidence = ConfidenceLevel.HIGH
-            elif len(met) >= len(requirements) * 0.5:
-                status = "partially_eligible"
-                confidence = ConfidenceLevel.MEDIUM
-            else:
-                status = "likely_not_eligible"
-                confidence = ConfidenceLevel.LOW
-
-            results.append({
-                "opportunity_title": opp.get("title", ""),
-                "eligibility_status": status,
-                "met_requirements": met,
-                "missing_requirements": missing,
-                "confidence": confidence.value,
-            })
-
-            evidence.append(
-                Evidence(
-                    claim=f"Eligibility for '{opp.get('title', '')}': {status}",
-                    status=(
-                        EvidenceStatus.CONFIRMED
-                        if status in ("likely_eligible", "likely_not_eligible")
-                        else EvidenceStatus.UNCERTAIN
-                    ),
-                    source_url=opp.get("source_url"),
-                    confidence=confidence,
-                    evidence_type="eligibility_analysis",
-                ).model_dump(mode="json")
-            )
-
-        logger.info("eligibility_complete count=%d", len(results))
-
-        return {
-            "eligibility_results": results,
-            "evidence": evidence,
-        }
-
 class EligibilityResultModel(BaseModel):
     opportunity_title: str
     eligibility_status: str # "confirmed", "likely", "uncertain", "insufficient_evidence"
@@ -106,7 +40,7 @@ class EligibilityListModel(BaseModel):
     results: List[EligibilityResultModel]
     evidence_claims: List[str]
 
-class RealLLMEligibilityAgent(BaseEligibilityAgent):
+class EligibilityAgent(BaseEligibilityAgent):
     async def execute(
         self,
         opportunities: List[Dict[str, Any]],
@@ -168,7 +102,4 @@ For eligibility_status, use ONLY: "confirmed", "likely", "uncertain", "insuffici
         }
 
 def get_eligibility_agent() -> BaseEligibilityAgent:
-    from app.core.config import get_settings
-    if get_settings().openai_api_key:
-        return RealLLMEligibilityAgent()
-    return MockEligibilityAgent()
+    return EligibilityAgent()
