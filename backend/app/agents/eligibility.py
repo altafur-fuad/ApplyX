@@ -168,7 +168,7 @@ For eligibility_status, use ONLY: "confirmed", "likely", "uncertain", "insuffici
         }
 
 def get_eligibility_agent() -> BaseEligibilityAgent:
-    from app.core.config import get_settings
-    if get_settings().openai_api_key:
-        return RealLLMEligibilityAgent()
-    return MockEligibilityAgent()
+    provider = get_llm_provider()
+    if provider.provider_name() == "mock":
+        return MockEligibilityAgent()
+    return RealLLMEligibilityAgent()

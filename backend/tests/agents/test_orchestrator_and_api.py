@@ -35,17 +35,18 @@ def mock_env_vars(monkeypatch):
     
     # Isolate LLM config
     from app.core.config import get_settings
-    import app.services.llm_service as llms
-    original_provider = llms._provider
+    import app.services.llm.factory as llm_factory
+    original_provider = llm_factory._provider_cache
     
     monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
     get_settings.cache_clear()
-    llms._provider = None
+    llm_factory._provider_cache = None
     
     yield
     
     get_settings.cache_clear()
-    llms._provider = original_provider
+    llm_factory._provider_cache = original_provider
 
 class TestOrchestrator:
     @pytest.mark.asyncio

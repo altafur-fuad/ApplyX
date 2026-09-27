@@ -171,9 +171,8 @@ Available Tools: {json.dumps(available_tools or [])}
 
 
 def get_planner_agent() -> BasePlannerAgent:
-    from app.core.config import get_settings
-    settings = get_settings()
-    if settings.openai_api_key:
-        return RealLLMPlanner()
-    return MockPlanner()
+    provider = get_llm_provider()
+    if provider.provider_name() == "mock":
+        return MockPlanner()
+    return RealLLMPlanner()
 

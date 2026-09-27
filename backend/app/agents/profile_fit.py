@@ -120,8 +120,8 @@ Never invent experience or skills.
         return data
 
 def get_profile_fit_agent() -> BaseProfileFitAgent:
-    from app.core.config import get_settings
-    if get_settings().openai_api_key:
-        return RealLLMProfileFitAgent()
-    return MockProfileFitAgent()
+    provider = get_llm_provider()
+    if provider.provider_name() == "mock":
+        return MockProfileFitAgent()
+    return RealLLMProfileFitAgent()
 

@@ -146,5 +146,37 @@ The backend has been upgraded to Phase 4, transitioning from deterministic mocks
 - **Web Research**: The Research Agent is powered by an LLM loop using `Tool Calling` (`tools` parameter) to formulate queries and extract real-world opportunities dynamically.
 - **Eligibility & Profile Fit**: Specialist agents process the authenticated profile against normalized opportunity requirements to provide evidence-backed, reasoned analysis instead of deterministic matching.
 - **Fallback safety**: Missing keys cleanly fall back to Phase 3 Mock agents without crashing.
-- **Background Execution**: Agent orchestration runs asynchronously without blocking HTTP requests.
+### Background Execution
+- Agent orchestration runs asynchronously without blocking HTTP requests.
 
+## Phase 6 Architecture: Provider-Agnostic LLM Layer
+
+The backend implements a generic, provider-neutral LLM abstraction layer to ensure the application is not locked to a single AI vendor.
+
+### Supported Providers
+- **mock**: Deterministic local testing, no API key required.
+- **openai**: Official OpenAI SDK integration (GPT-4o, etc).
+- **gemini**: Google Gemini integration using OpenAI compatibility.
+- **openai_compatible**: Generic adapter for any HTTP endpoint matching the OpenAI schema (e.g. Local models, OpenRouter, Groq).
+
+### Configuration
+Change providers via `.env` variables (no code changes required):
+```env
+LLM_PROVIDER=openai
+LLM_MODEL=gpt-4o-mini
+LLM_API_KEY=your_key_here
+LLM_BASE_URL= # Required only for openai_compatible
+```
+
+### Capabilities
+The generic interface safely reports capabilities:
+- `structured_output`
+- `tool_calling`
+- `json_mode`
+
+### Fallback Semantics
+If primary authentication fails, the system safely falls back using:
+- `LLM_FALLBACK_PROVIDER=mock`
+
+### Testing & Security
+Tests automatically execute within a secure, isolated `mock` environment, preventing accidental usage of real developer credentials inside test suites.

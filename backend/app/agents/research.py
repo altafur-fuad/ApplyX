@@ -86,8 +86,15 @@ Do NOT invent opportunities or evidence.
 """
         user_prompt = f"Constraints: {json.dumps(input_data.get('constraints', {}))}"
         
+        from app.services.llm.models import LLMTool
         search_tool = registry.get("web_search")
-        tools_list = [search_tool.definition.model_dump()] if search_tool else []
+        tools_list = []
+        if search_tool:
+            tools_list.append(LLMTool(
+                name=search_tool.definition.name,
+                description=search_tool.definition.description,
+                input_schema=search_tool.definition.input_schema
+            ))
         
         request = LLMRequest(
             messages=[
@@ -105,9 +112,9 @@ Do NOT invent opportunities or evidence.
         
         if response.tool_calls:
             for tc in response.tool_calls:
-                if tc.get("function", {}).get("name") == "web_search":
+                if tc.name == "web_search":
                     try:
-                        args = json.loads(tc["function"]["arguments"])
+                        args = json.loads(tc.arguments)
                     except:
                         args = {}
                     
@@ -145,7 +152,7 @@ Do NOT invent opportunities or evidence.
         }
 
 def get_research_agent() -> BaseResearchAgent:
-    from app.core.config import get_settings
-    if get_settings().openai_api_key:
-        return RealLLMResearchAgent()
-    return MockResearchAgent()
+    provider = get_llm_provider()
+    if provider.provider_name() == "mock":
+        return MockResearchAgent()
+    return RealLLMResearchAgent()
