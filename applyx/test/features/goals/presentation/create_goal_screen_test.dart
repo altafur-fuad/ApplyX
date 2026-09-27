@@ -6,6 +6,9 @@ import 'package:applyx/features/goals/presentation/providers/goal_provider.dart'
 import 'package:applyx/features/goals/data/goal_repository.dart';
 import 'package:applyx/features/goals/domain/goal.dart';
 import 'package:applyx/core/network/api_exception.dart';
+import 'package:applyx/features/agent_runs/presentation/providers/agent_provider.dart';
+import 'package:applyx/features/agent_runs/data/agent_repository.dart';
+import 'package:applyx/features/agent_runs/domain/agent_run.dart';
 
 class FakeGoalRepository implements GoalRepository {
   bool shouldFail = false;
@@ -45,11 +48,29 @@ class FakeGoalRepository implements GoalRepository {
   Future<Goal> updateGoal(String id, UpdateGoalRequest request) async => throw UnimplementedError();
 }
 
+class FakeAgentRepository implements AgentRepository {
+  @override
+  Future<AgentRun> createAgentRun(String goalId, String mode) async {
+    return const AgentRun(id: 'r1', goalId: 'g1', status: AgentStatus.queued);
+  }
+
+  @override
+  Future<AgentRun> getAgentRun(String runId) async => throw UnimplementedError();
+
+  @override
+  Future<List<AgentRunEvent>> getAgentRunEvents(String runId) async => [];
+
+  @override
+  Future<AgentRun> cancelAgentRun(String runId) async => throw UnimplementedError();
+}
+
 void main() {
-  Widget createTestableWidget(FakeGoalRepository repository) {
+  Widget createTestableWidget(FakeGoalRepository repository, [FakeAgentRepository? agentRepo]) {
+    agentRepo ??= FakeAgentRepository();
     return ProviderScope(
       overrides: [
         goalRepositoryProvider.overrideWithValue(repository),
+        agentRepositoryProvider.overrideWithValue(agentRepo),
       ],
       child: const MaterialApp(
         home: CreateGoalScreen(),

@@ -10,6 +10,7 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/network/api_exception.dart';
 import '../domain/goal.dart';
 import 'providers/goal_provider.dart';
+import '../../agent_runs/presentation/providers/agent_provider.dart';
 
 /// Create Goal screen.
 ///
@@ -58,10 +59,13 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
         rawGoal: text,
       );
 
-      await repository.createGoal(request);
+      final goal = await repository.createGoal(request);
       
       // Invalidate the active goal provider so it refetches the newly created active goal
       ref.invalidate(activeGoalProvider);
+
+      // Start the agent run
+      await ref.read(agentRunProvider.notifier).startRun(goal.id);
 
       if (mounted) {
         context.push(AppRoutes.agentActivity);
