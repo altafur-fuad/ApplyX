@@ -59,9 +59,9 @@ async def test_mock_search_request(monkeypatch):
     request = SearchRequest(query="test query")
     response = await provider.search(request)
     
-    assert len(response.results) == 1
-    assert response.results[0].title == "Mock Result for test query"
-    assert response.results[0].source_name == "mock_provider"
+    assert len(response.results) == 5
+    assert response.results[0].title == "Software Engineering Intern"
+    assert response.results[0].source_name == "example_board"
 
 def test_fallback_search_provider(monkeypatch):
     monkeypatch.setenv("SEARCH_PROVIDER", "unknown_provider")

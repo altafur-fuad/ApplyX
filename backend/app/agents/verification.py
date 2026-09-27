@@ -73,6 +73,39 @@ class VerificationService:
         # Output should be a dict
         if not isinstance(task.output, dict):
             result.add_issue(f"Task '{task.name}' output is not a dict.", block=True)
+            return result
+
+        # Check opportunity-level integrity if this task produced opportunities
+        if "opportunities" in task.output:
+            opportunities = task.output.get("opportunities", [])
+            seen_urls = set()
+            for opp in opportunities:
+                # 1. Required schema fields
+                if not opp.get("title"):
+                    result.add_issue(f"Opportunity lacks title.", block=True)
+
+                # 2. Source URL
+                url = opp.get("source_url")
+                if not url:
+                    result.add_issue(f"Opportunity '{opp.get('title')}' lacks source URL.", block=True)
+
+                # 5. Malformed URL
+                if url and not url.startswith("http"):
+                    result.add_issue(f"Opportunity '{opp.get('title')}' has malformed URL: {url}", block=True)
+
+                # 7. Duplicate opportunities removed
+                norm_url = url.split("?")[0].rstrip("/") if url else ""
+                if norm_url in seen_urls:
+                    result.add_issue(f"Duplicate opportunity found: {url}", block=True)
+                if norm_url:
+                    seen_urls.add(norm_url)
+
+        # 8. Eligibility/profile-fit references point to existing opportunities
+        # If this is profile_fit, we expect fit_analyses to have opportunity_title
+        if "fit_analyses" in task.output:
+            for fit in task.output.get("fit_analyses", []):
+                if not fit.get("opportunity_title"):
+                    result.add_issue("Profile fit result lacks opportunity_title.")
 
         return result
 

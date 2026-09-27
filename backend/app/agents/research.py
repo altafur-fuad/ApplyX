@@ -15,8 +15,8 @@ from typing import Any, Dict
 from app.agents.models import Evidence, EvidenceStatus, ConfidenceLevel
 from app.services.llm_service import get_llm_provider, LLMRequest, LLMMessage
 from app.tools.registry import get_tool_registry
-
-from app.agents.models import Evidence, EvidenceStatus, ConfidenceLevel
+from app.services.opportunity.pipeline import process_search_results
+from app.services.search.models import SearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -73,29 +73,16 @@ Do NOT invent opportunities or evidence.
                     record = await registry.execute("web_search", args)
                     if record.status == "completed" and record.output_data:
                         results = record.output_data.get("results", [])
-                        raw_opportunities.extend(results)
+
+                        # Convert dicts back to SearchResult models
+                        for r_dict in results:
+                            # Safely handle retrieved_at string to datetime conversion if needed
+                            raw_opportunities.append(SearchResult(**r_dict))
+
                         sources.update([r.get("source_name", "web_search") for r in results])
 
-        normalized = []
-        evidence = []
-        now = datetime.now(timezone.utc)
-        
-        for opp in raw_opportunities:
-            norm_rec = await registry.execute("normalize_opportunity", {"raw_data": opp})
-            if norm_rec.status == "completed" and norm_rec.output_data:
-                norm_opp = norm_rec.output_data
-                normalized.append(norm_opp)
-                
-                evidence.append(
-                    Evidence(
-                        claim=f"Opportunity found: {norm_opp.get('title')}",
-                        status=EvidenceStatus.CONFIRMED,
-                        source_url=norm_opp.get("source_url"),
-                        retrieved_at=now,
-                        confidence=ConfidenceLevel.HIGH,
-                        evidence_type="opportunity_listing"
-                    ).model_dump(mode="json")
-                )
+        # Pipeline: Normalization, Deduplication, Evidence Preservation
+        normalized, evidence = process_search_results(raw_opportunities)
                 
         return {
             "opportunities": normalized,
