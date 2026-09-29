@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 
 class BaseResearchAgent(abc.ABC):
     @abc.abstractmethod
-    async def execute(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(self, input_data: Dict[str, Any], agent_run_id: str | None = None, task_id: str | None = None) -> Dict[str, Any]:
         ...
 
 class ResearchAgent(BaseResearchAgent):
-    async def execute(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(self, input_data: Dict[str, Any], agent_run_id: str | None = None, task_id: str | None = None) -> Dict[str, Any]:
         provider = get_llm_provider()
         registry = get_tool_registry()
         
@@ -70,7 +70,7 @@ Do NOT invent opportunities or evidence.
                     except:
                         args = {}
                     
-                    record = await registry.execute("web_search", args)
+                    record = await registry.execute("web_search", args, agent_run_id=agent_run_id, task_id=task_id)
                     if record.status == "completed" and record.output_data:
                         results = record.output_data.get("results", [])
 

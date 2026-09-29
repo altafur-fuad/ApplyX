@@ -19,10 +19,12 @@ def _update_status(user_id: str, approval_id: str, status: str):
         raise APIError("APPROVAL_INVALID", f"Approval is not pending (current status: {item['status']}).", 422)
     
     update_data = {"status": status}
+    from datetime import datetime, timezone
+    now_iso = datetime.now(timezone.utc).isoformat()
     if status == "approved":
-        update_data["approved_at"] = "now()"
+        update_data["approved_at"] = now_iso
     elif status == "rejected":
-        update_data["rejected_at"] = "now()"
+        update_data["rejected_at"] = now_iso
         
     res = supabase.table("approvals").update(update_data).eq("id", approval_id).eq("user_id", user_id).execute()
     if not res.data:

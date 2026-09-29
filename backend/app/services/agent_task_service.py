@@ -22,6 +22,8 @@ def create_agent_task(
     *,
     input_json: Dict[str, Any] | None = None,
     parent_task_id: str | None = None,
+    task_id: str | None = None,
+    status: str | None = None,
 ) -> Dict[str, Any]:
     """Insert a new agent_task row."""
     supabase = get_supabase_client()
@@ -34,6 +36,10 @@ def create_agent_task(
         data["input_json"] = input_json
     if parent_task_id is not None:
         data["parent_task_id"] = parent_task_id
+    if task_id is not None:
+        data["id"] = task_id
+    if status is not None:
+        data["status"] = status
 
     res = supabase.table("agent_tasks").insert(data).execute()
     if not res.data:
@@ -56,6 +62,8 @@ def update_agent_task(
     if not res.data:
         raise APIError("NOT_FOUND", "Agent task not found.", 404)
     return cast(Dict[str, Any], res.data[0])
+
+
 
 
 def get_tasks_for_run(agent_run_id: str) -> List[Dict[str, Any]]:

@@ -220,3 +220,15 @@ Do not invent final choices when implementing these areas unless the task explic
 - Initial project context created.
 - PRD, architecture, rules, design and task framework established.
 - Agentic workflow defined as the core differentiator.
+
+### 2026-09-29
+
+- Phase 7 (Agent Core) completed.
+- AD-007: Task and tool-call persistence wired into orchestrator via `agent_task_service` and `tool_call_service`. Persistence calls are fire-and-forget with error logging; failures do not block agent execution.
+- AD-008: Cancellation is cooperative. The orchestrator polls `get_agent_run` between task attempts. If the database status is `cancelled`, the run stops immediately. No background cancellation thread.
+- AD-009: Global timeout uses `run_timeout_minutes` from `AgentGuardrails`. Checked at the start of each iteration in the dependency loop, not per-task.
+- AD-010: Retry is bounded by `max_retries_per_task`. Policy errors (`ToolPermissionDenied`), authorization errors, and `ApprovalRequired` do not retry — they break immediately.
+- AD-011: Approval boundary is enforced by `check_action_policy` in `policies.py`. `ApprovalRequired` causes the orchestrator to transition to `WAITING_FOR_APPROVAL` without retrying. Resume requires a separate API call. `CRITICAL` actions are blocked entirely for MVP.
+- AD-012: DocumentAgent uses the provider-agnostic LLM abstraction with Pydantic `DocumentGenerationResult` for structured output. Fact safety is enforced via system prompt constraints. Generated documents are always marked `is_draft=True`.
+- AD-013: State transitions are validated in `state.py`. Terminal states (`COMPLETED`, `FAILED`, `CANCELLED`) have no outgoing transitions. Invalid transitions raise `InvalidStateTransition`.
+- LLM provider decision resolved: Gemini via `google-genai` SDK as primary, with `MockLLMProvider` for offline testing. Search provider: Tavily.
