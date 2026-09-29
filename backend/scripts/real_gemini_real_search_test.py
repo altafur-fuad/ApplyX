@@ -77,7 +77,7 @@ async def main():
     search_latency_ms = 0
     result_count = 0
 
-    def wrapped_get_llm_provider():
+    def wrapped_get_llm_provider(force_provider: str | None = None):
         provider = original_llm_provider
         original_complete = provider.complete
 
@@ -92,7 +92,7 @@ async def main():
         provider.complete = wrapped_complete
         return provider
 
-    def wrapped_get_search_provider():
+    def wrapped_get_search_provider(force_provider: str | None = None):
         provider = original_search_provider
         original_search = provider.search
 

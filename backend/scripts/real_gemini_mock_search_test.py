@@ -17,6 +17,8 @@ from app.agents.models import RunStatus
 logging.basicConfig(level=logging.CRITICAL)
 logging.getLogger("app.agents.orchestrator").setLevel(logging.CRITICAL)
 
+gemini_latency_ms = -1
+
 async def main():
     print("========================================")
     print("ApplyX — Real Gemini + Mock Search Test")
