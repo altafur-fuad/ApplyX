@@ -154,7 +154,8 @@ class MockLLMProvider(LLMProvider):
                         "matching_location": [],
                         "missing_information": [],
                         "uncertainty": [],
-                        "overall_fit": "strong"
+                        "overall_fit": "High Fit",
+                        "structured_explanation": "Matches Python and is remote."
                     })
                 response_content = json.dumps({"fit_analyses": results})
 
@@ -174,14 +175,19 @@ class MockLLMProvider(LLMProvider):
                     ],
                     "warnings": null
                 }}"""
+            elif model_name == "ParsedRequirements":
+                response_content = f"""{{
+                    "hard_requirements": ["Python", "FastAPI", "SQL"],
+                    "nice_to_haves": ["React"]
+                }}"""
 
         # Mock tool call for ResearchAgent
         if request.tools and not request.response_model:
             from app.services.llm.models import LLMToolCall
-            if any(t.name == "web_search" for t in request.tools):
+            if any(t.name in ("web_search", "search_opportunities") for t in request.tools):
                 response_content = ""
                 tool_calls = [
-                    LLMToolCall(id="mock_call_1", name="web_search", arguments='{"query": "mock query"}')
+                    LLMToolCall(id="mock_call_1", name="search_opportunities", arguments='{"query": "mock query"}')
                 ]
 
         prompt_tokens = sum(len(m.content.split()) for m in request.messages)

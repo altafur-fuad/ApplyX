@@ -32,14 +32,14 @@ class ResearchAgent(BaseResearchAgent):
         registry = get_tool_registry()
         
         system_prompt = """You are the ApplyX Research Agent.
-Your goal is to find relevant opportunities. You have access to the web_search tool.
-Formulate a search query based on the constraints provided, and call the web_search tool.
+Your goal is to find relevant opportunities. You have access to the search_opportunities tool.
+Formulate a search query based on the constraints provided, and call the search_opportunities tool.
 Do NOT invent opportunities or evidence.
 """
         user_prompt = f"Constraints: {json.dumps(input_data.get('constraints', {}))}"
         
         from app.services.llm.models import LLMTool
-        search_tool = registry.get("web_search")
+        search_tool = registry.get("search_opportunities")
         tools_list = []
         if search_tool:
             tools_list.append(LLMTool(
@@ -64,13 +64,13 @@ Do NOT invent opportunities or evidence.
         
         if response.tool_calls:
             for tc in response.tool_calls:
-                if tc.name == "web_search":
+                if tc.name in ("web_search", "search_opportunities"):
                     try:
                         args = json.loads(tc.arguments)
                     except:
                         args = {}
                     
-                    record = await registry.execute("web_search", args, agent_run_id=agent_run_id, task_id=task_id)
+                    record = await registry.execute("search_opportunities", args, agent_run_id=agent_run_id, task_id=task_id)
                     if record.status == "completed" and record.output_data:
                         results = record.output_data.get("results", [])
 
@@ -79,10 +79,10 @@ Do NOT invent opportunities or evidence.
                             # Safely handle retrieved_at string to datetime conversion if needed
                             raw_opportunities.append(SearchResult(**r_dict))
 
-                        sources.update([r.get("source_name", "web_search") for r in results])
+                        sources.update([r.get("source_name", "search_opportunities") for r in results])
 
         # Pipeline: Normalization, Deduplication, Evidence Preservation
-        normalized, evidence = process_search_results(raw_opportunities)
+        normalized, evidence = await process_search_results(raw_opportunities)
                 
         return {
             "opportunities": normalized,

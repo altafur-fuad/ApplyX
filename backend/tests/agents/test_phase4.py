@@ -69,9 +69,9 @@ async def test_structured_output():
 
 def test_tool_registry_validation():
     registry = get_tool_registry()
-    tool = registry.get("web_search")
+    tool = registry.get("search_opportunities")
     assert tool is not None
-    assert tool.definition.name == "web_search"
+    assert tool.definition.name == "search_opportunities"
     
 def test_guardrails_limits():
     orch = Orchestrator(guardrails=AgentGuardrails(max_tasks_per_run=1, max_tool_calls_per_run=1))

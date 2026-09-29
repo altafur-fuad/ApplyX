@@ -10,7 +10,7 @@ from __future__ import annotations
 import abc
 import json
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Literal
 from pydantic import BaseModel
 from app.services.llm_service import get_llm_provider, LLMRequest, LLMMessage
 
@@ -35,7 +35,8 @@ class ProfileFitResultModel(BaseModel):
     matching_location: List[str]
     missing_information: List[str]
     uncertainty: List[str]
-    overall_fit: str
+    overall_fit: Literal["High Fit", "Medium Fit", "Low Fit"]
+    structured_explanation: str
 
 class ProfileFitListModel(BaseModel):
     fit_analyses: List[ProfileFitResultModel]
@@ -51,9 +52,11 @@ class ProfileFitAgent(BaseProfileFitAgent):
         
         system_prompt = """You are the ApplyX Profile-Fit Agent.
 Compare the user profile to the opportunity eligibility results.
-Output the specific matching skills, matching interests, matching experience, matching education, and matching location/remote preference.
-Explicitly list any missing information or uncertainty in the profile or opportunity data.
-Never invent experience, skills, or arbitrary numerical matching scores.
+Use a predefined criteria rubric (skills match, experience match, location/remote match) to evaluate fit.
+Generate a categorical rank in `overall_fit` strictly as one of: 'High Fit', 'Medium Fit', or 'Low Fit'.
+Provide a detailed `structured_explanation` for why that rank was chosen based on the rubric.
+Output the specific matching skills, interests, experience, education, and location.
+Explicitly list any missing information or uncertainty. Never invent experience or skills.
 """
         user_prompt = f"Profile: {json.dumps(profile)}\nEligibility: {json.dumps(eligibility_results)}"
         
