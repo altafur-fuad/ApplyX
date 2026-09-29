@@ -170,6 +170,26 @@ class Evidence(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Document / Artifact models
+# ---------------------------------------------------------------------------
+
+class GeneratedSection(BaseModel):
+    title: str
+    content: str
+    uncertainty_warnings: Optional[str] = None
+
+class DocumentGenerationResult(BaseModel):
+    """Structured output from DocumentAgent LLM."""
+    kind: str
+    title: str
+    content: str
+    is_draft: bool = True
+    source_facts_used: List[str] = Field(default_factory=list)
+    generated_sections: List[GeneratedSection] = Field(default_factory=list)
+    warnings: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
 # Task models
 # ---------------------------------------------------------------------------
 

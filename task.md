@@ -143,23 +143,23 @@ Use this file as the project execution checklist. Complete tasks in order unless
 
 ## Phase 7 — Agent Core
 
-- [ ] Define agent state model
-- [ ] Define task schema
-- [ ] Define tool schema
-- [ ] Build tool registry
-- [ ] Build planner agent
-- [ ] Build research agent
-- [ ] Build eligibility agent
-- [ ] Build profile-fit agent
-- [ ] Build document agent
-- [ ] Build verification agent
-- [ ] Build action agent
-- [ ] Persist agent run state
-- [ ] Persist task state
-- [ ] Add retry policy
-- [ ] Add cancellation
-- [ ] Add timeout handling
-- [ ] Add audit logging
+- [x] Define agent state model
+- [x] Define task schema
+- [x] Define tool schema
+- [x] Build tool registry
+- [x] Build planner agent
+- [x] Build research agent
+- [x] Build eligibility agent
+- [x] Build profile-fit agent
+- [x] Build document agent
+- [x] Build verification agent
+- [x] Build action agent
+- [x] Persist agent run state
+- [x] Persist task state
+- [x] Add retry policy
+- [x] Add cancellation
+- [x] Add timeout handling
+- [x] Add audit logging
 
 **Exit criteria:** one complete agent run works from goal to verified result.
 

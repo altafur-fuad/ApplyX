@@ -158,6 +158,23 @@ class MockLLMProvider(LLMProvider):
                     })
                 response_content = json.dumps({"fit_analyses": results})
 
+            elif model_name == "DocumentGenerationResult":
+                response_content = f"""{{
+                    "kind": "cover_letter",
+                    "title": "Draft Document",
+                    "content": "This is a mock draft.",
+                    "is_draft": true,
+                    "source_facts_used": [],
+                    "generated_sections": [
+                        {{
+                            "title": "Introduction",
+                            "content": "I am writing to apply...",
+                            "uncertainty_warnings": null
+                        }}
+                    ],
+                    "warnings": null
+                }}"""
+
         # Mock tool call for ResearchAgent
         if request.tools and not request.response_model:
             from app.services.llm.models import LLMToolCall

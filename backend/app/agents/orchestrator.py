@@ -123,14 +123,28 @@ class Orchestrator:
 
             state.plan = plan
             state.tasks = list(plan.tasks)
+            from app.services.agent_task_service import create_agent_task
+            if state.run_id:
+                for t in state.tasks:
+                    create_agent_task(
+                        agent_run_id=state.run_id,
+                        task_id=t.id,
+                        status=t.status.value,
+                        agent_type=t.agent_type.value,
+                        name=t.name,
+                    )
+
             self._emit_event(state, AgentEventType.PLAN_CREATED, f"Plan with {len(plan.tasks)} tasks.")
             self._emit_event(state, AgentEventType.PLANNING_COMPLETED, "Planning completed.")
 
             # 4 → RUNNING
             transition_run(state, RunStatus.RUNNING)
 
+            start_time = datetime.now(timezone.utc)
+            timeout_seconds = self.guardrails.run_timeout_minutes * 60
+
             # 5 — Execute tasks in dependency order
-            await self._execute_tasks(state, profile_data)
+            await self._execute_tasks(state, profile_data, start_time, timeout_seconds)
 
             # 6 — Final result & Quality Gate
             if state.status == RunStatus.RUNNING:
@@ -176,6 +190,8 @@ class Orchestrator:
         self,
         state: AgentRunState,
         profile_data: Dict[str, Any],
+        start_time: datetime,
+        timeout_seconds: int,
     ) -> None:
         """Execute plan tasks in dependency order."""
         # Accumulated context passed between agents
@@ -192,6 +208,13 @@ class Orchestrator:
 
         while iteration < max_iterations:
             iteration += 1
+
+            # Check global timeout
+            if (datetime.now(timezone.utc) - start_time).total_seconds() > timeout_seconds:
+                state.error = "Global timeout exceeded."
+                transition_run(state, RunStatus.FAILED)
+                self._emit_event(state, AgentEventType.RUN_FAILED, state.error)
+                return
 
             # Find ready tasks
             ready = [
@@ -230,6 +253,9 @@ class Orchestrator:
     ) -> None:
         """Execute a single task through its specialist agent with retries."""
         transition_task(task, TaskStatus.RUNNING)
+        if state.run_id:
+            from app.services.agent_task_service import update_agent_task
+            update_agent_task(task.id, {"status": TaskStatus.RUNNING.value})
         state.current_step = task.agent_type.value
         state.total_tool_calls += 1
 
@@ -246,7 +272,21 @@ class Orchestrator:
         while attempt < max_attempts:
             attempt += 1
             try:
-                output = await self._dispatch_task(task, context)
+                # check cancellation
+                if state.status in (RunStatus.CANCELLED, RunStatus.FAILED):
+                    return
+                # check from db
+                if state.run_id:
+                    from app.services.agent_run_service import get_agent_run
+                    try:
+                        db_run = get_agent_run(state.run_id, state.user_id)
+                        if db_run and db_run.get("status") == RunStatus.CANCELLED.value:
+                            state.error = "Run was cancelled by user."
+                            transition_run(state, RunStatus.CANCELLED)
+                            return
+                    except Exception as e:
+                        pass
+                output = await self._dispatch_task(state, task, context)
                 task.output = output
 
                 # Merge output into shared context
@@ -258,6 +298,16 @@ class Orchestrator:
                     raise Exception(f"Task output verification failed: {'; '.join(vr.issues)}")
 
                 transition_task(task, TaskStatus.COMPLETED)
+                if state.run_id:
+                    from app.services.agent_task_service import update_agent_task
+                    update_agent_task(
+                        task.id,
+                        {
+                            "status": TaskStatus.COMPLETED.value,
+                            "output_json": output,
+                            "completed_at": datetime.now(timezone.utc).isoformat()
+                        }
+                    )
 
                 # Emit specific completion events
                 complete_event = AgentEventType.TASK_COMPLETED
@@ -277,11 +327,41 @@ class Orchestrator:
 
             except Exception as exc:
                 last_error = exc
+                if state.status in (RunStatus.CANCELLED, RunStatus.FAILED):
+                    break
+
+                if exc.__class__.__name__ == "ApprovalRequired":
+                    # Mark task and run as WAITING_FOR_APPROVAL
+                    task.error_message = str(exc)
+                    transition_task(task, TaskStatus.WAITING_FOR_APPROVAL)
+                    if state.run_id:
+                        from app.services.agent_task_service import update_agent_task
+                        update_agent_task(
+                            task.id,
+                            {"status": TaskStatus.WAITING_FOR_APPROVAL.value}
+                        )
+                    transition_run(state, RunStatus.WAITING_FOR_APPROVAL)
+                    self._emit_event(state, AgentEventType.APPROVAL_REQUESTED, "Human approval requested.")
+                    return
+
+                if exc.__class__.__name__ == "ToolPermissionDenied":
+                    break
+
                 state.total_retries += 1
                 logger.warning(f"Task {task.name} failed attempt {attempt}/{max_attempts}: {exc}")
 
         task.error_message = str(last_error)
         transition_task(task, TaskStatus.FAILED)
+        if state.run_id:
+            from app.services.agent_task_service import update_agent_task
+            update_agent_task(
+                task.id,
+                {
+                    "status": TaskStatus.FAILED.value,
+                    "error_message": task.error_message,
+                    "completed_at": datetime.now(timezone.utc).isoformat()
+                }
+            )
         state.error = f"Task '{task.name}' failed after {max_attempts} attempts: {last_error}"
         transition_run(state, RunStatus.FAILED)
         self._emit_event(
@@ -293,6 +373,7 @@ class Orchestrator:
 
     async def _dispatch_task(
         self,
+        state: AgentRunState,
         task: AgentTask,
         context: Dict[str, Any],
     ) -> Dict[str, Any]:
@@ -319,7 +400,13 @@ class Orchestrator:
             fit_analyses = context.get("fit_analyses", [])
             opp = opportunities[0] if opportunities else {}
             fit = fit_analyses[0] if fit_analyses else {}
-            return self.document.execute(profile, opp, fit)
+            return await self.document.execute(
+                profile=profile,
+                opportunity=opp,
+                fit_analysis=fit,
+                user_id=state.user_id,
+                task_input=task.input
+            )
 
         elif task.agent_type == AgentType.VERIFICATION:
             # Verify accumulated evidence

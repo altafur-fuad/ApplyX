@@ -78,6 +78,8 @@ class ToolRegistry:
         input_data: Dict[str, Any],
         *,
         approval_granted: bool = False,
+        agent_run_id: Optional[str] = None,
+        task_id: Optional[str] = None,
     ) -> ToolCallRecord:
         """
         Look up *tool_name*, enforce policy, execute, and return a
@@ -95,6 +97,20 @@ class ToolRegistry:
             input_data=input_data,
             risk_level=tool.risk_level,
         )
+
+        db_tool_call = None
+        if agent_run_id:
+            from app.services import tool_call_service
+            try:
+                db_tool_call = tool_call_service.create_tool_call(
+                    agent_run_id=agent_run_id,
+                    tool_name=tool_name,
+                    risk_level=tool.risk_level.value,
+                    task_id=task_id,
+                    input_json=input_data,
+                )
+            except Exception as e:
+                logger.error(f"Failed to persist tool call start: {e}")
 
         start = time.monotonic()
         try:
@@ -117,6 +133,16 @@ class ToolRegistry:
                 tool_name,
                 elapsed,
             )
+
+        if db_tool_call:
+            from app.services import tool_call_service
+            try:
+                update_data: Dict[str, Any] = {"status": record.status}
+                if record.output_data:
+                    update_data["output_json"] = record.output_data
+                tool_call_service.update_tool_call(db_tool_call["id"], update_data)
+            except Exception as e:
+                logger.error(f"Failed to persist tool call end: {e}")
 
         logger.info(
             "tool_executed tool=%s status=%s duration_ms=%.2f risk=%s",
