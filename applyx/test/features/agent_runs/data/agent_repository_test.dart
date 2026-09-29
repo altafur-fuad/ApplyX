@@ -19,7 +19,7 @@ void main() {
       final apiClient = ApiClient(
         getToken: () async => null,
         httpClient: MockClient((request) async {
-          expect(request.url.path, '/v1/agent-runs');
+          expect(request.url.path, '/api/v1/agent-runs');
           expect(request.method, 'POST');
           return http.Response(jsonEncode(mockResponse), 201);
         }),
@@ -45,7 +45,7 @@ void main() {
       final apiClient = ApiClient(
         getToken: () async => null,
         httpClient: MockClient((request) async {
-          expect(request.url.path, '/v1/agent-runs/run1/events');
+          expect(request.url.path, '/api/v1/agent-runs/run1/events');
           return http.Response(jsonEncode(mockResponse), 200);
         }),
       );
@@ -66,7 +66,7 @@ void main() {
       final apiClient = ApiClient(
         getToken: () async => null,
         httpClient: MockClient((request) async {
-          expect(request.url.path, '/v1/agent-runs/run1/cancel');
+          expect(request.url.path, '/api/v1/agent-runs/run1/cancel');
           expect(request.method, 'POST');
           return http.Response(jsonEncode(mockResponse), 200);
         }),

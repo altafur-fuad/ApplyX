@@ -10,6 +10,6 @@ class ApiConfig {
       }
     }
     // Default fallback for Android Emulator local development
-    return 'http://10.0.2.2:8000/v1';
+    return 'http://10.0.2.2:8000/api/v1';
   }
 }
