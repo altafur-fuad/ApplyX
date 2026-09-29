@@ -5,6 +5,7 @@ abstract class ApplicationRepository {
   Future<List<Application>> getApplications();
   Future<Application?> getApplicationById(String id);
   Future<Application?> createApplication(String opportunityId, String status);
+  Future<List<Map<String, dynamic>>> getChecklist(String applicationId);
 }
 
 class ApiApplicationRepository implements ApplicationRepository {
@@ -49,6 +50,17 @@ class ApiApplicationRepository implements ApplicationRepository {
       return _mapJsonToApplication(response);
     } catch (e) {
       return null;
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getChecklist(String applicationId) async {
+    try {
+      final response = await _apiClient.get('/applications/$applicationId/checklist');
+      final data = response['checklist'] as List;
+      return data.cast<Map<String, dynamic>>();
+    } catch (e) {
+      return [];
     }
   }
 

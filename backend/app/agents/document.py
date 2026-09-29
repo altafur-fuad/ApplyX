@@ -39,10 +39,22 @@ class DocumentAgent:
         instruction = task_input.get("instruction", "Generate a draft document.")
         application_id = task_input.get("application_id", "")
 
+        if kind in ("resume", "resume_bullets"):
+            kind_instructions = "Generate concise, role/opportunity-specific resume bullets. Focus on skills and project-oriented achievements from the profile. Ensure all claims are directly backed by the provided facts."
+        elif kind == "cover_letter":
+            kind_instructions = "Generate a structured cover letter draft. Include an opening, relevant background aligned to the opportunity, evidence/examples from the profile, and a closing. Do not overstate fit or eligibility."
+        elif kind == "short_answer":
+            kind_instructions = f"Generate a short-answer response to the following question or prompt: '{instruction}'. Maintain the question context."
+        else:
+            kind_instructions = f"Generate a structured draft based on: {instruction}"
+
         system_prompt = f"""You are the ApplyX Document Agent.
 Your job is to generate a structured '{kind}' draft for the user based ONLY on their profile and the opportunity facts.
 DO NOT invent, fabricate, or hallucinate qualifications, projects, experience, deadlines, achievements, company facts, or organization details.
 Use ONLY the provided profile facts, fit analysis, and opportunity details.
+
+{kind_instructions}
+
 If required information is missing to fulfill the instruction, do not fabricate it. Include an uncertainty_warning in the generated section or output warnings.
 Always produce a draft.
 Return output adhering to the DocumentGenerationResult schema.

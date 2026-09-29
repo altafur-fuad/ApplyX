@@ -35,6 +35,16 @@ def update_document(user_id: str, document_id: str, doc_update: DocumentUpdate):
 
     # Fetch existing to increment version
     existing = get_document(user_id, document_id)
+
+    # Save current version to history before updating
+    version_data = {
+        "document_id": document_id,
+        "user_id": user_id,
+        "content": existing["content"],
+        "version": existing["version"]
+    }
+    supabase.table("document_versions").insert(version_data).execute()
+
     new_version = existing["version"] + 1
 
     update_data = {
@@ -45,6 +55,15 @@ def update_document(user_id: str, document_id: str, doc_update: DocumentUpdate):
     if not res.data:
         raise APIError("NOT_FOUND", "Document not found.", 404)
     return cast(Dict[str, Any], res.data[0])
+
+def get_application_documents(user_id: str, application_id: str):
+    supabase = get_supabase_client()
+    app_res = supabase.table("applications").select("id").eq("id", application_id).eq("user_id", user_id).execute()
+    if not app_res.data:
+        raise APIError("NOT_FOUND", "Application not found.", 404)
+        
+    res = supabase.table("documents").select("*").eq("application_id", application_id).eq("user_id", user_id).order("updated_at", desc=True).execute()
+    return cast(list[Dict[str, Any]], res.data)
 
 def save_generated_document(user_id: str, application_id: str, kind: str, title: str, content: str) -> Dict[str, Any]:
     """Save a generated document draft, preserving versions if it exists."""
@@ -57,6 +76,15 @@ def save_generated_document(user_id: str, application_id: str, kind: str, title:
         # Document exists, update it and increment version
         existing = cast(Dict[str, Any], res.data[0])
         new_version = existing.get("version", 0) + 1
+
+        version_data = {
+            "document_id": existing["id"],
+            "user_id": user_id,
+            "content": existing["content"],
+            "version": existing.get("version", 0)
+        }
+        supabase.table("document_versions").insert(version_data).execute()
+
         update_data = {
             "title": title,
             "content": content,

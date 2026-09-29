@@ -194,6 +194,15 @@ create table if not exists public.documents (
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.document_versions (
+  id uuid primary key default gen_random_uuid(),
+  document_id uuid not null references public.documents(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  content text not null,
+  version integer not null,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
 create table if not exists public.approvals (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -382,6 +391,9 @@ create policy applications_all_own on public.applications for all using (auth.ui
 
  drop policy if exists documents_all_own on public.documents;
 create policy documents_all_own on public.documents for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists document_versions_all_own on public.document_versions;
+create policy document_versions_all_own on public.document_versions for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
  drop policy if exists approvals_all_own on public.approvals;
 create policy approvals_all_own on public.approvals for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

@@ -51,6 +51,57 @@ async def test_document_generation_success(mock_complete, mock_save):
     assert "## Introduction" in kwargs["content"]
 
 @pytest.mark.asyncio
+@patch("app.agents.document.save_generated_document")
+@patch("app.services.llm.providers.mock.MockLLMProvider.complete")
+async def test_document_generation_resume_bullets(mock_complete, mock_save):
+    result_mock = DocumentGenerationResult(
+        kind="resume_bullets",
+        title="Resume Bullets",
+        content="Generated content.",
+        source_facts_used=[],
+        generated_sections=[
+            GeneratedSection(title="Experience", content="- Developed features in Python", uncertainty_warnings=None)
+        ]
+    )
+    mock_complete.return_value = LLMResponse(content=result_mock.model_dump_json(), parsed=result_mock, model="mock")
+    mock_save.return_value = {"id": "mock-doc-id", "version": 1}
+
+    agent = DocumentAgent()
+    task_input = {"document_kind": "resume_bullets", "instruction": "Write resume bullets", "application_id": "app-123"}
+    
+    await agent.execute({}, {}, {}, user_id="user-123", task_input=task_input)
+    
+    # Assert system prompt contained resume specific instructions
+    call_args = mock_complete.call_args[0][0]
+    sys_msg = call_args.messages[0].content
+    assert "role/opportunity-specific resume bullets" in sys_msg
+
+@pytest.mark.asyncio
+@patch("app.agents.document.save_generated_document")
+@patch("app.services.llm.providers.mock.MockLLMProvider.complete")
+async def test_document_generation_short_answer(mock_complete, mock_save):
+    result_mock = DocumentGenerationResult(
+        kind="short_answer",
+        title="Short Answer",
+        content="Generated content.",
+        source_facts_used=[],
+        generated_sections=[
+            GeneratedSection(title="Answer", content="I want to work here.", uncertainty_warnings=None)
+        ]
+    )
+    mock_complete.return_value = LLMResponse(content=result_mock.model_dump_json(), parsed=result_mock, model="mock")
+    mock_save.return_value = {"id": "mock-doc-id", "version": 1}
+
+    agent = DocumentAgent()
+    task_input = {"document_kind": "short_answer", "instruction": "Why do you want to join?", "application_id": "app-123"}
+    
+    await agent.execute({}, {}, {}, user_id="user-123", task_input=task_input)
+    
+    call_args = mock_complete.call_args[0][0]
+    sys_msg = call_args.messages[0].content
+    assert "Why do you want to join?" in sys_msg
+
+@pytest.mark.asyncio
 @patch("app.services.llm.providers.mock.MockLLMProvider.complete")
 async def test_document_generation_malformed(mock_complete):
     # Setup mock to return garbage JSON

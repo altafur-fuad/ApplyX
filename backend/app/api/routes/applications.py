@@ -17,3 +17,7 @@ def get_applications(user = Depends(get_current_user)):
 @router.patch("/{application_id}", response_model=ApplicationResponse)
 def update_application(application_id: str, app_update: ApplicationUpdate, user = Depends(get_current_user)):
     return application_service.update_application(user.id, application_id, app_update)
+
+@router.get("/{application_id}/checklist")
+def get_application_checklist(application_id: str, user = Depends(get_current_user)):
+    return application_service.get_application_checklist(user.id, application_id)

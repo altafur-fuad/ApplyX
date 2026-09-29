@@ -52,6 +52,7 @@ class ApplicationTrackerScreen extends ConsumerWidget {
               itemBuilder: (context, index) {
                 final app = applications[index];
                 return _ApplicationCard(
+                  id: app.id,
                   oppId: app.opportunityId,
                   title: app.title,
                   org: app.organization,
@@ -119,6 +120,7 @@ class ApplicationTrackerScreen extends ConsumerWidget {
 
 class _ApplicationCard extends StatelessWidget {
   const _ApplicationCard({
+    required this.id,
     required this.oppId,
     required this.title,
     required this.org,
@@ -128,6 +130,7 @@ class _ApplicationCard extends StatelessWidget {
     required this.deadlineUrgent,
   });
 
+  final String id;
   final String oppId;
   final String title;
   final String org;
@@ -139,7 +142,7 @@ class _ApplicationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SurfaceCard(
-      onTap: () => context.push('${AppRoutes.opportunityDetail}/$oppId'),
+      onTap: () => context.push('${AppRoutes.applicationTracker}/application-detail/$id'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -17,3 +17,7 @@ def get_document(document_id: str, user = Depends(get_current_user)):
 @router.patch("/{document_id}", response_model=DocumentResponse)
 def update_document(document_id: str, doc_update: DocumentUpdate, user = Depends(get_current_user)):
     return document_service.update_document(user.id, document_id, doc_update)
+
+@router.get("/application/{application_id}", response_model=List[DocumentResponse])
+def get_application_documents(application_id: str, user = Depends(get_current_user)):
+    return document_service.get_application_documents(user.id, application_id)
