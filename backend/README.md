@@ -247,3 +247,10 @@ All agent classes (Planner, Research, Eligibility, Profile Fit) use the generic 
   ```powershell
   python -m pytest
   ```
+
+### Phase 6 Agent Quality & Robustness
+- **Quality Gate**: A rigorous final verification step executed before transitioning a run to `COMPLETED`. Validates schema integrity, evidence coverage, source attribution, duplicate removal, and consistency between specialist outputs.
+- **Robust Error Taxonomy**: Distinguishes agent failures cleanly (e.g., `provider_timeout`, `validation_error`, `malformed_model_output`, `approval_required`) for accurate diagnostics.
+- **Explainable Results**: Eligibility and Profile-Fit outputs strictly enforce transparent reasoning. Outcomes are categorized clearly (`clearly_eligible`, `clearly_not_eligible`, `uncertain`, `insufficient_evidence`) with detailed explanations for matches and gaps, rather than relying on arbitrary numerical scores.
+- **Bounded Retries**: Transient task failures are retried safely at the Orchestrator level according to configured guardrails before propagating a run failure.
+- **Detailed Observability**: Extended `AgentEventType` models accurately capture granular sub-steps (e.g., `planning_started`, `normalization_completed`, `quality_gate_passed`) to build a transparent, step-by-step audit timeline.

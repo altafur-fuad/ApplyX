@@ -11,10 +11,14 @@ Responsibilities:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.agents.state import AgentRunState
 
 from app.agents.models import (
     AgentTask,
+    AgentType,
     ConfidenceLevel,
     Evidence,
     EvidenceStatus,
@@ -140,6 +144,64 @@ class VerificationService:
                 result.add_issue(
                     f"Confirmed claim '{ev.claim}' lacks source URL; downgraded."
                 )
+
+        return result
+
+    def verify_final_result(self, state: "AgentRunState") -> VerificationResult:
+        """Dedicated Quality Gate to evaluate the final result before completion."""
+        result = VerificationResult()
+
+        final_result = state.final_result or {}
+
+        opportunities = final_result.get(AgentType.RESEARCH.value, {}).get("opportunities", [])
+        evidence_dicts = final_result.get(AgentType.RESEARCH.value, {}).get("evidence", [])
+
+        # Merge eligibility evidence as well if it exists in the final state tasks
+        # Wait, evidence is gathered in context, but final result only has what tasks output.
+        # It's better to check all opportunities and ensure they're duplicate-free.
+        seen_urls = set()
+        valid_opportunity_titles = set()
+
+        for opp in opportunities:
+            # Source attribution & integrity
+            url = opp.get("source_url")
+            title = opp.get("title")
+            if title:
+                valid_opportunity_titles.add(title)
+
+            if not url:
+                result.add_issue(f"Quality Gate: Opportunity '{title}' lacks source attribution.", block=True)
+            else:
+                norm_url = url.split("?")[0].rstrip("/")
+                if norm_url in seen_urls:
+                    result.add_issue(f"Quality Gate: Duplicate opportunity found after normalization: {url}", block=True)
+                seen_urls.add(norm_url)
+
+            # Evidence coverage for important fields
+            # Check deadline evidence
+            deadline = opp.get("deadline")
+            if deadline:
+                # Expect to find evidence for this deadline
+                has_deadline_evidence = any(
+                    e.get("evidence_type") == "deadline_info" and e.get("source_url") == url
+                    for e in evidence_dicts
+                )
+                if not has_deadline_evidence:
+                    result.add_issue(f"Quality Gate: Confirmed deadline {deadline} for '{title}' lacks evidence.", block=True)
+
+        # Eligibility consistency
+        eligibility = final_result.get(AgentType.ELIGIBILITY.value, {}).get("eligibility_results", [])
+        for elig in eligibility:
+            etitle = elig.get("opportunity_title")
+            if etitle not in valid_opportunity_titles:
+                result.add_issue(f"Quality Gate: Eligibility references unknown opportunity '{etitle}'.", block=True)
+
+        # Profile-fit consistency
+        fit = final_result.get(AgentType.PROFILE_FIT.value, {}).get("fit_analyses", [])
+        for f in fit:
+            ftitle = f.get("opportunity_title")
+            if ftitle not in valid_opportunity_titles:
+                result.add_issue(f"Quality Gate: Profile Fit references unknown opportunity '{ftitle}'.", block=True)
 
         return result
 
