@@ -37,10 +37,10 @@ def _create_provider_instance(provider_name: str, settings: Any) -> LLMProvider:
     else:
         raise LLMConfigurationError(f"Unknown provider '{provider_name}'")
 
-def get_llm_provider(force_provider: Optional[str] = None, disable_fallback: bool = False) -> LLMProvider:
+def get_llm_provider(force_provider: Optional[str] = None) -> LLMProvider:
     """
     Returns a configured LLM provider instance.
-    Uses fallback semantics from configuration if necessary, unless disable_fallback is True.
+    Uses fallback semantics from configuration if necessary.
     """
     global _provider_cache
     if _provider_cache is not None and not force_provider:
@@ -53,21 +53,7 @@ def get_llm_provider(force_provider: Optional[str] = None, disable_fallback: boo
     
     provider: LLMProvider
     
-    try:
-        provider = _create_provider_instance(provider_name, settings)
-    except LLMConfigurationError as e:
-        if disable_fallback:
-            raise
-        fallback = settings.llm_fallback_provider
-        if fallback:
-            logger.warning("Provider '%s' failed to initialize: %s. Falling back to '%s'.", provider_name, str(e), fallback)
-            try:
-                provider = _create_provider_instance(fallback, settings)
-            except Exception as fallback_e:
-                raise LLMConfigurationError(f"Fallback provider '{fallback}' also failed: {fallback_e}") from fallback_e
-        else:
-            raise
-            
+    provider = _create_provider_instance(provider_name, settings)
     wrapped_provider = RetryLLMProviderWrapper(provider)
     if not force_provider:
         _provider_cache = wrapped_provider

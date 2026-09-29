@@ -174,9 +174,8 @@ The generic interface safely reports capabilities:
 - `tool_calling`
 - `json_mode`
 
-### Fallback Semantics
-If primary authentication fails, the system safely falls back using:
-- `LLM_FALLBACK_PROVIDER=mock`
+### No Silent Fallbacks
+If primary authentication or configuration fails, the system safely raises a configuration error and enters a `CONFIG_INVALID` diagnostic state. It will **not** silently fall back to `mock`, preventing unexpected production behavior where an invalid key quietly switches to deterministic mock responses.
 
 ### Testing & Security
 Tests automatically execute within a secure, isolated `mock` environment, preventing accidental usage of real developer credentials inside test suites. 
@@ -190,6 +189,13 @@ python scripts/llm_smoke_test.py
 ```
 
 This will print the configured provider, model, local initialization state, and capability mappings without hitting the API.
+
+Diagnostic states include:
+- `NOT_CONFIGURED`: Missing credentials for the selected provider.
+- `CONFIG_INVALID`: Malformed configuration or unsupported provider.
+- `READY_LOCAL`: Provider constructed successfully, awaiting remote call.
+- `REMOTE_VERIFIED`: Remote endpoint responded successfully (requires `--real`).
+- `REMOTE_FAILED`: Remote endpoint returned an error (requires `--real`).
 
 To run a **REAL** network test against your explicitly configured provider, use the `--real` flag. This will send exactly ONE minimal prompt ("Reply with exactly: ApplyX smoke test successful") and print usage metadata and any normalized errors (like quotas or auth failures).
 
@@ -254,3 +260,10 @@ All agent classes (Planner, Research, Eligibility, Profile Fit) use the generic 
 - **Explainable Results**: Eligibility and Profile-Fit outputs strictly enforce transparent reasoning. Outcomes are categorized clearly (`clearly_eligible`, `clearly_not_eligible`, `uncertain`, `insufficient_evidence`) with detailed explanations for matches and gaps, rather than relying on arbitrary numerical scores.
 - **Bounded Retries**: Transient task failures are retried safely at the Orchestrator level according to configured guardrails before propagating a run failure.
 - **Detailed Observability**: Extended `AgentEventType` models accurately capture granular sub-steps (e.g., `planning_started`, `normalization_completed`, `quality_gate_passed`) to build a transparent, step-by-step audit timeline.
+
+## Live Provider Adapter Layer
+The backend utilizes robust provider adapters (OpenAI, Gemini, OpenAI-compatible, Tavily) to execute against real APIs securely.
+- **Generic Normalization**: Provider-specific responses are parsed and mapped to common structures, ensuring business agents remain provider-agnostic.
+- **Error Mapping**: Network, rate-limit, timeout, and authentication failures are safely mapped to unified generic errors.
+- **Resilience**: Configurable hard timeouts and bounded retry mechanisms handle transient provider unavailability without causing infinite loops or blocking indefinitely.
+- **Safe Testing**: Normal adapter tests completely mock HTTP boundaries, guaranteeing no real API requests or quota are consumed during development.

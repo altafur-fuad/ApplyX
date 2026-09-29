@@ -3,7 +3,7 @@ import logging
 from app.services.llm.base import LLMProvider
 from app.services.llm.models import LLMRequest, LLMResponse, LLMCapabilities
 from app.services.llm.errors import (
-    LLMAuthenticationError, LLMQuotaError, LLMConfigurationError
+    LLMRateLimitError, LLMTimeoutError, LLMUnavailableError
 )
 
 logger = logging.getLogger(__name__)
@@ -29,10 +29,7 @@ class RetryLLMProviderWrapper(LLMProvider):
             try:
                 # Provide a hard timeout (60 seconds per request attempt)
                 return await asyncio.wait_for(self._provider.complete(request), timeout=60.0)
-            except (LLMAuthenticationError, LLMQuotaError, LLMConfigurationError) as e:
-                # Do not retry permanent errors
-                raise
-            except Exception as e:
+            except (LLMRateLimitError, LLMTimeoutError, LLMUnavailableError) as e:
                 retries += 1
                 if retries > self.max_retries:
                     raise

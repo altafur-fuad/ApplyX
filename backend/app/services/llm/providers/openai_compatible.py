@@ -4,8 +4,8 @@ from typing import Any, Dict
 from app.services.llm.base import LLMProvider
 from app.services.llm.models import LLMRequest, LLMResponse, LLMUsage, LLMCapabilities, LLMToolCall
 from app.services.llm.errors import (
-    LLMAuthenticationError, LLMQuotaError, LLMRateLimitError, 
-    LLMTimeoutError, LLMInvalidResponseError, LLMError
+    LLMAuthenticationError, LLMQuotaError, LLMRateLimitError,
+    LLMTimeoutError, LLMInvalidResponseError, LLMError, LLMUnavailableError
 )
 
 logger = logging.getLogger(__name__)
@@ -13,7 +13,12 @@ logger = logging.getLogger(__name__)
 class OpenAICompatibleProvider(LLMProvider):
     def __init__(self, api_key: str, base_url: str, default_model: str) -> None:
         import openai
-        self._client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url)
+        self._client = openai.AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            max_retries=0,
+            timeout=60.0
+        )
         self._default_model = default_model
 
     def provider_name(self) -> str:
@@ -39,20 +44,22 @@ class OpenAICompatibleProvider(LLMProvider):
             return LLMRateLimitError(str(e))
         if isinstance(e, openai.APITimeoutError):
             return LLMTimeoutError(str(e))
+        if isinstance(e, openai.APIConnectionError):
+            return LLMUnavailableError(str(e))
         if isinstance(e, openai.APIError):
             return LLMInvalidResponseError(str(e))
         return LLMError(str(e))
 
     async def complete(self, request: LLMRequest) -> LLMResponse:
         model = request.model if request.model != "mock" else self._default_model
-        
+
         kwargs: Dict[str, Any] = {
             "model": model,
             "messages": [{"role": m.role, "content": m.content} for m in request.messages],
             "temperature": request.temperature,
             "max_tokens": request.max_tokens,
         }
-        
+
         if request.tools:
             kwargs["tools"] = [
                 {
@@ -67,9 +74,9 @@ class OpenAICompatibleProvider(LLMProvider):
             ]
         if request.tool_choice:
             kwargs["tool_choice"] = request.tool_choice
-            
+
         start_time = time.time()
-        
+
         try:
             if request.response_model:
                 completion = await self._client.beta.chat.completions.parse(
@@ -83,12 +90,12 @@ class OpenAICompatibleProvider(LLMProvider):
             else:
                 if request.response_format == "json":
                     kwargs["response_format"] = {"type": "json_object"}
-                    
+
                 completion = await self._client.chat.completions.create(**kwargs)
                 msg = completion.choices[0].message
                 content = msg.content or ""
                 parsed = None
-                
+
                 if msg.tool_calls:
                     tool_calls = [
                         LLMToolCall(
@@ -108,7 +115,7 @@ class OpenAICompatibleProvider(LLMProvider):
                 usage.total_tokens = completion.usage.total_tokens
 
             finish_reason = completion.choices[0].finish_reason
-            
+
             logger.info(
                 "openai_compatible_complete model=%s ms=%.0f pt=%d ct=%d finish=%s",
                 model,
@@ -117,7 +124,7 @@ class OpenAICompatibleProvider(LLMProvider):
                 usage.output_tokens,
                 finish_reason
             )
-            
+
             return LLMResponse(
                 content=content,
                 model=model,
@@ -126,7 +133,7 @@ class OpenAICompatibleProvider(LLMProvider):
                 parsed=parsed,
                 tool_calls=tool_calls
             )
-            
+
         except Exception as e:
             logger.error("openai_compatible_complete failed: %s", str(e))
             raise self._translate_error(e) from e

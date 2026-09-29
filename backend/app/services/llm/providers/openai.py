@@ -5,7 +5,7 @@ from app.services.llm.base import LLMProvider
 from app.services.llm.models import LLMRequest, LLMResponse, LLMUsage, LLMCapabilities, LLMToolCall
 from app.services.llm.errors import (
     LLMAuthenticationError, LLMQuotaError, LLMRateLimitError, 
-    LLMTimeoutError, LLMInvalidResponseError, LLMError
+    LLMTimeoutError, LLMInvalidResponseError, LLMError, LLMUnavailableError
 )
 
 logger = logging.getLogger(__name__)
@@ -13,7 +13,11 @@ logger = logging.getLogger(__name__)
 class OpenAILLMProvider(LLMProvider):
     def __init__(self, api_key: str, default_model: str = "gpt-4o-mini") -> None:
         import openai
-        self._client = openai.AsyncOpenAI(api_key=api_key)
+        self._client = openai.AsyncOpenAI(
+            api_key=api_key,
+            max_retries=0,
+            timeout=60.0
+        )
         self._default_model = default_model
 
     def provider_name(self) -> str:
@@ -39,6 +43,8 @@ class OpenAILLMProvider(LLMProvider):
             return LLMRateLimitError(str(e))
         if isinstance(e, openai.APITimeoutError):
             return LLMTimeoutError(str(e))
+        if isinstance(e, openai.APIConnectionError):
+            return LLMUnavailableError(str(e))
         if isinstance(e, openai.APIError):
             return LLMInvalidResponseError(str(e))
         return LLMError(str(e))

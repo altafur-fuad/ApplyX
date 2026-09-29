@@ -21,7 +21,7 @@ def _create_provider_instance(provider_name: str, settings) -> SearchProvider:
     else:
         raise SearchConfigurationError(f"Unknown search provider '{provider_name}'")
 
-def get_search_provider(force_provider: Optional[str] = None, disable_fallback: bool = False) -> SearchProvider:
+def get_search_provider(force_provider: Optional[str] = None) -> SearchProvider:
     global _provider_cache
     if _provider_cache is not None and not force_provider:
         return _provider_cache
@@ -30,21 +30,7 @@ def get_search_provider(force_provider: Optional[str] = None, disable_fallback: 
     provider_name = force_provider or settings.search_provider or "mock"
     
     provider: SearchProvider
-    try:
-        provider = _create_provider_instance(provider_name, settings)
-    except SearchConfigurationError as e:
-        if disable_fallback:
-            raise
-        fallback = settings.search_fallback_provider
-        if fallback:
-            logger.warning("SearchProvider '%s' failed to initialize: %s. Falling back to '%s'.", provider_name, str(e), fallback)
-            try:
-                provider = _create_provider_instance(fallback, settings)
-            except Exception as fallback_e:
-                raise SearchConfigurationError(f"Fallback search provider '{fallback}' also failed: {fallback_e}") from fallback_e
-        else:
-            raise
-            
+    provider = _create_provider_instance(provider_name, settings)
     wrapped_provider = RetrySearchProviderWrapper(provider)
     if not force_provider:
         _provider_cache = wrapped_provider

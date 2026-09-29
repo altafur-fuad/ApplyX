@@ -9,7 +9,8 @@ from app.services.search.errors import (
     SearchConfigurationError,
     SearchInvalidResponseError,
     SearchTimeoutError,
-    SearchError
+    SearchError,
+    SearchUnavailableError
 )
 
 class TavilySearchProvider(SearchProvider):
@@ -58,6 +59,8 @@ class TavilySearchProvider(SearchProvider):
             raise SearchAuthenticationError("Invalid Tavily API key.")
         elif response.status_code == 429:
             raise SearchRateLimitError("Tavily rate limit exceeded.")
+        elif response.status_code >= 500:
+            raise SearchUnavailableError(f"Tavily server error {response.status_code}.")
         elif response.status_code >= 400:
             raise SearchInvalidResponseError(f"Tavily returned error status {response.status_code}: {response.text}")
 
