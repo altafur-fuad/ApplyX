@@ -13,7 +13,7 @@ class MockLLMProvider(LLMProvider):
 
     def provider_name(self) -> str:
         return "mock"
-        
+
     def model_name(self) -> str:
         return self._default_model
 
@@ -105,32 +105,58 @@ class MockLLMProvider(LLMProvider):
                     ]
                 }}"""
             elif model_name == "EligibilityListModel":
-                response_content = """{
-                    "results": [
-                        {
-                            "opportunity_title": "Mock Result for ",
-                            "eligibility_status": "likely",
-                            "met_requirements": ["python"],
-                            "missing_requirements": [],
-                            "potential_blockers": [],
-                            "confidence": "high"
-                        }
-                    ],
-                    "evidence_claims": [
-                        "Eligibility for Mock Result for : likely"
-                    ]
-                }"""
+                # Try to extract opportunity titles from user_content
+                import json
+                titles = []
+                try:
+                    opps_str = user_content.split("Opportunities: ")[1]
+                    opps = json.loads(opps_str)
+                    titles = [o.get("title") for o in opps if "title" in o]
+                except:
+                    titles = ["Mock Result for "]
+
+                results = []
+                claims = []
+                for t in titles:
+                    results.append({
+                        "opportunity_title": t,
+                        "eligibility_status": "clearly_eligible",
+                        "conclusions": [{
+                            "requirement": "python",
+                            "is_met": True,
+                            "reason": "Found in profile",
+                            "evidence_reference": "",
+                            "uncertainty_state": "confirmed"
+                        }]
+                    })
+                    claims.append(f"Eligibility for {t}: clearly_eligible")
+
+                response_content = json.dumps({"results": results, "evidence_claims": claims})
+
             elif model_name == "ProfileFitListModel":
-                response_content = """{
-                    "fit_analyses": [
-                        {
-                            "opportunity_title": "Mock Result for ",
-                            "fit_reasons": ["Profile matches requirements: python."],
-                            "gaps": [],
-                            "overall_fit": "strong"
-                        }
-                    ]
-                }"""
+                import json
+                titles = []
+                try:
+                    elig_str = user_content.split("Eligibility: ")[1]
+                    elig = json.loads(elig_str)
+                    titles = [e.get("opportunity_title") for e in elig if "opportunity_title" in e]
+                except:
+                    titles = ["Mock Result for "]
+
+                results = []
+                for t in titles:
+                    results.append({
+                        "opportunity_title": t,
+                        "matching_skills": ["python"],
+                        "matching_interests": [],
+                        "matching_experience": [],
+                        "matching_education": [],
+                        "matching_location": [],
+                        "missing_information": [],
+                        "uncertainty": [],
+                        "overall_fit": "strong"
+                    })
+                response_content = json.dumps({"fit_analyses": results})
 
         # Mock tool call for ResearchAgent
         if request.tools and not request.response_model:
@@ -143,7 +169,7 @@ class MockLLMProvider(LLMProvider):
 
         prompt_tokens = sum(len(m.content.split()) for m in request.messages)
         completion_tokens = len(response_content.split())
-        
+
         logger.info(
             "mock_llm_complete model=%s prompt_tokens=%d completion_tokens=%d",
             request.model,

@@ -104,6 +104,7 @@ class Orchestrator:
             # 1 → PLANNING
             transition_run(state, RunStatus.PLANNING)
             self._emit_event(state, AgentEventType.RUN_CREATED, "Agent run started.")
+            self._emit_event(state, AgentEventType.PLANNING_STARTED, "Planning started.")
 
             # 2 — Generate plan
             plan = await self.planner.create_plan(
@@ -123,6 +124,7 @@ class Orchestrator:
             state.plan = plan
             state.tasks = list(plan.tasks)
             self._emit_event(state, AgentEventType.PLAN_CREATED, f"Plan with {len(plan.tasks)} tasks.")
+            self._emit_event(state, AgentEventType.PLANNING_COMPLETED, "Planning completed.")
 
             # 4 → RUNNING
             transition_run(state, RunStatus.RUNNING)
@@ -130,9 +132,19 @@ class Orchestrator:
             # 5 — Execute tasks in dependency order
             await self._execute_tasks(state, profile_data)
 
-            # 6 — Final result
+            # 6 — Final result & Quality Gate
             if state.status == RunStatus.RUNNING:
                 state.final_result = self._build_final_result(state)
+
+                # Evaluate Quality Gate
+                qg_result = self.verification.verify_final_result(state)
+                if not qg_result.passed:
+                    state.error = f"Quality Gate failed: {'; '.join(qg_result.issues)}"
+                    transition_run(state, RunStatus.FAILED)
+                    self._emit_event(state, AgentEventType.QUALITY_GATE_FAILED, state.error)
+                    return state
+
+                self._emit_event(state, AgentEventType.QUALITY_GATE_PASSED, "Quality Gate passed successfully.")
                 transition_run(state, RunStatus.COMPLETED)
                 self._emit_event(state, AgentEventType.RUN_COMPLETED, "Agent run completed.")
 
@@ -216,46 +228,68 @@ class Orchestrator:
         task: AgentTask,
         context: Dict[str, Any],
     ) -> None:
-        """Execute a single task through its specialist agent."""
+        """Execute a single task through its specialist agent with retries."""
         transition_task(task, TaskStatus.RUNNING)
         state.current_step = task.agent_type.value
         state.total_tool_calls += 1
+
+        # Emit specific start events
+        start_event = AgentEventType.TASK_STARTED
+        if task.agent_type == AgentType.RESEARCH:
+            start_event = AgentEventType.RESEARCH_STARTED
+        self._emit_event(state, start_event, f"Started: {task.name}", task_id=task.id)
+
+        max_attempts = self.guardrails.max_retries_per_task + 1
+        attempt = 0
+        last_error = None
+
+        while attempt < max_attempts:
+            attempt += 1
+            try:
+                output = await self._dispatch_task(task, context)
+                task.output = output
+
+                # Merge output into shared context
+                self._merge_context(context, task.agent_type, output)
+
+                # Verify task output
+                vr = self.verification.verify_task_output(task)
+                if vr.blocked:
+                    raise Exception(f"Task output verification failed: {'; '.join(vr.issues)}")
+
+                transition_task(task, TaskStatus.COMPLETED)
+
+                # Emit specific completion events
+                complete_event = AgentEventType.TASK_COMPLETED
+                if task.agent_type == AgentType.RESEARCH:
+                    complete_event = AgentEventType.RESEARCH_COMPLETED
+                    self._emit_event(state, AgentEventType.NORMALIZATION_COMPLETED, "Opportunities normalized.", task_id=task.id)
+                    self._emit_event(state, AgentEventType.DEDUPLICATION_COMPLETED, "Opportunities deduplicated.", task_id=task.id)
+                elif task.agent_type == AgentType.ELIGIBILITY:
+                    complete_event = AgentEventType.ELIGIBILITY_COMPLETED
+                elif task.agent_type == AgentType.PROFILE_FIT:
+                    complete_event = AgentEventType.PROFILE_FIT_COMPLETED
+                elif task.agent_type == AgentType.VERIFICATION:
+                    complete_event = AgentEventType.VERIFICATION_COMPLETED
+
+                self._emit_event(state, complete_event, f"Completed: {task.name}", task_id=task.id)
+                return
+
+            except Exception as exc:
+                last_error = exc
+                state.total_retries += 1
+                logger.warning(f"Task {task.name} failed attempt {attempt}/{max_attempts}: {exc}")
+
+        task.error_message = str(last_error)
+        transition_task(task, TaskStatus.FAILED)
+        state.error = f"Task '{task.name}' failed after {max_attempts} attempts: {last_error}"
+        transition_run(state, RunStatus.FAILED)
         self._emit_event(
             state,
-            AgentEventType.TASK_STARTED,
-            f"Started: {task.name}",
+            AgentEventType.RUN_FAILED,
+            f"Task failed: {task.name}",
             task_id=task.id,
         )
-
-        try:
-            output = await self._dispatch_task(task, context)
-            task.output = output
-
-            # Merge output into shared context
-            self._merge_context(context, task.agent_type, output)
-
-            # Verify task output
-            vr = self.verification.verify_task_output(task)
-
-            transition_task(task, TaskStatus.COMPLETED)
-            self._emit_event(
-                state,
-                AgentEventType.TASK_COMPLETED,
-                f"Completed: {task.name}",
-                task_id=task.id,
-            )
-
-        except Exception as exc:
-            task.error_message = str(exc)
-            transition_task(task, TaskStatus.FAILED)
-            state.error = f"Task '{task.name}' failed: {exc}"
-            transition_run(state, RunStatus.FAILED)
-            self._emit_event(
-                state,
-                AgentEventType.RUN_FAILED,
-                f"Task failed: {task.name}",
-                task_id=task.id,
-            )
 
     async def _dispatch_task(
         self,
@@ -359,7 +393,7 @@ class Orchestrator:
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         self._events.append(event)
-        
+
         if state.run_id:
             try:
                 from app.services import agent_event_service

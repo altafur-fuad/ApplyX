@@ -28,8 +28,13 @@ class BaseProfileFitAgent(abc.ABC):
 
 class ProfileFitResultModel(BaseModel):
     opportunity_title: str
-    fit_reasons: List[str]
-    gaps: List[str]
+    matching_skills: List[str]
+    matching_interests: List[str]
+    matching_experience: List[str]
+    matching_education: List[str]
+    matching_location: List[str]
+    missing_information: List[str]
+    uncertainty: List[str]
     overall_fit: str
 
 class ProfileFitListModel(BaseModel):
@@ -46,8 +51,9 @@ class ProfileFitAgent(BaseProfileFitAgent):
         
         system_prompt = """You are the ApplyX Profile-Fit Agent.
 Compare the user profile to the opportunity eligibility results.
-Output matching skills, relevant profile evidence, missing skills, missing evidence, and a fit explanation.
-Never invent experience or skills.
+Output the specific matching skills, matching interests, matching experience, matching education, and matching location/remote preference.
+Explicitly list any missing information or uncertainty in the profile or opportunity data.
+Never invent experience, skills, or arbitrary numerical matching scores.
 """
         user_prompt = f"Profile: {json.dumps(profile)}\nEligibility: {json.dumps(eligibility_results)}"
         
