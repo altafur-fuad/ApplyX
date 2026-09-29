@@ -205,11 +205,11 @@ def _register_builtins(registry: ToolRegistry) -> None:
         CreateDraftArtifactTool,
         PersistAgentEventTool,
     )
-    from app.tools.search import SearchTool
+    from app.tools.search import SearchOpportunitiesTool
 
     registry.register(CalculateMatchSignalsTool())
     registry.register(NormalizeOpportunityTool())
     registry.register(SummarizeEvidenceTool())
     registry.register(CreateDraftArtifactTool())
     registry.register(PersistAgentEventTool())
-    registry.register(SearchTool())
+    registry.register(SearchOpportunitiesTool())

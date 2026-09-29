@@ -30,7 +30,8 @@ def test_missing_field_handling():
     assert opp["deadline"] is None
     assert opp["location"] is None
     
-def test_deduplication():
+@pytest.mark.asyncio
+async def test_deduplication():
     # 1. Exact URL duplicate
     res1 = SearchResult(
         title="Software Engineering Intern",
@@ -74,7 +75,7 @@ def test_deduplication():
         retrieved_at=datetime.now(timezone.utc)
     )
     
-    opps, ev = process_search_results([res1, res2, res3, res4, res5])
+    opps, ev = await process_search_results([res1, res2, res3, res4, res5])
     
     assert len(opps) == 3
     titles = [o["title"] for o in opps]
