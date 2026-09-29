@@ -12,3 +12,8 @@ final applicationDocumentsProvider = FutureProvider.family<List<ApplicationDocum
   final repository = ref.watch(applicationDocumentRepositoryProvider);
   return repository.getApplicationDocuments(applicationId);
 });
+
+final documentVersionsProvider = FutureProvider.family<List<ApplicationDocumentVersion>, String>((ref, documentId) {
+  final repository = ref.watch(applicationDocumentRepositoryProvider);
+  return repository.getDocumentVersions(documentId);
+});

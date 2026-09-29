@@ -5,6 +5,7 @@ abstract class ApplicationDocumentRepository {
   Future<List<ApplicationDocument>> getApplicationDocuments(String applicationId);
   Future<ApplicationDocument?> generateDocument(String applicationId, String kind, String instruction);
   Future<ApplicationDocument?> updateDocument(String documentId, String content);
+  Future<List<ApplicationDocumentVersion>> getDocumentVersions(String documentId);
 }
 
 class ApiApplicationDocumentRepository implements ApplicationDocumentRepository {
@@ -52,6 +53,17 @@ class ApiApplicationDocumentRepository implements ApplicationDocumentRepository 
       return ApplicationDocument.fromJson(response);
     } catch (e) {
       return null;
+    }
+  }
+
+  @override
+  Future<List<ApplicationDocumentVersion>> getDocumentVersions(String documentId) async {
+    try {
+      final response = await _apiClient.get('/documents/$documentId/versions');
+      final data = response as List;
+      return data.map((json) => ApplicationDocumentVersion.fromJson(json)).toList();
+    } catch (e) {
+      return [];
     }
   }
 }

@@ -120,10 +120,27 @@ def test_documents(mock_supabase_client):
     
     doc_id = str(uuid.uuid4())
     app_id = str(uuid.uuid4())
+    opp_id = str(uuid.uuid4())
+    
+    # Need to mock the 4 selects in create_document_draft and the insert
+    mock_eq = MagicMock()
+    mock_supabase_client.table().select().eq.return_value = mock_eq
+    mock_eq.eq.return_value = mock_eq
+    
+    mock_eq.execute.side_effect = [
+        MagicMock(data=[{"opportunity_id": opp_id}]),
+        MagicMock(data=[{"id": opp_id, "title": "Opp"}]),
+        MagicMock(data=[{"user_id": user_id}]),
+        MagicMock(data=[{"analysis_json": {}}]),
+        MagicMock(data=[]) # for save check
+    ]
     
     mock_supabase_client.table().insert().execute.return_value = MagicMock(data=[{"id": doc_id, "user_id": user_id, "application_id": app_id, "kind": "resume", "title": "Draft", "content": "test", "version": 1, "is_draft": True, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}])
     
-    res = client.post("/api/v1/documents/draft", json={"application_id": app_id, "kind": "resume", "instruction": "test"}, headers={"Authorization": "Bearer valid_token"})
+    with patch("app.agents.document.DocumentAgent.execute") as mock_agent_exec:
+        mock_agent_exec.return_value = {"document_result": {}, "saved_document": {"id": doc_id, "kind": "resume", "user_id": user_id, "application_id": app_id, "title": "t", "content": "c", "version": 1, "is_draft": True, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}}
+        res = client.post("/api/v1/documents/draft", json={"application_id": app_id, "kind": "resume", "instruction": "test"}, headers={"Authorization": "Bearer valid_token"})
+    
     if res.status_code != 200: print(res.json()); assert res.status_code == 200
     assert res.json()["kind"] == "resume"
 

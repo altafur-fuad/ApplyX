@@ -32,3 +32,29 @@ class ApplicationDocument {
     );
   }
 }
+
+class ApplicationDocumentVersion {
+  final String id;
+  final String documentId;
+  final String content;
+  final int version;
+  final DateTime createdAt;
+
+  const ApplicationDocumentVersion({
+    required this.id,
+    required this.documentId,
+    required this.content,
+    required this.version,
+    required this.createdAt,
+  });
+
+  factory ApplicationDocumentVersion.fromJson(Map<String, dynamic> json) {
+    return ApplicationDocumentVersion(
+      id: json['id'],
+      documentId: json['document_id'],
+      content: json['content'],
+      version: json['version'],
+      createdAt: DateTime.parse(json['created_at']),
+    );
+  }
+}

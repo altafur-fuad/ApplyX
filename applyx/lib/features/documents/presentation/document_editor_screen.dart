@@ -68,7 +68,16 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Version ${widget.document.version}', style: AppTypography.caption()),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Version ${widget.document.version}', style: AppTypography.caption()),
+                  TextButton(
+                    onPressed: _showVersionHistory,
+                    child: const Text('View History'),
+                  ),
+                ],
+              ),
               const SizedBox(height: AppSpacing.sm),
               Expanded(
                 child: Container(
@@ -114,5 +123,45 @@ class _DocumentEditorScreenState extends ConsumerState<DocumentEditorScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to save document')));
     }
+  }
+
+  void _showVersionHistory() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Consumer(
+          builder: (context, ref, child) {
+            final versionsAsync = ref.watch(documentVersionsProvider(widget.document.id));
+            
+            return versionsAsync.when(
+              data: (versions) {
+                if (versions.isEmpty) {
+                  return const Center(child: Text('No version history.'));
+                }
+                return ListView.builder(
+                  itemCount: versions.length,
+                  itemBuilder: (context, index) {
+                    final v = versions[index];
+                    return ListTile(
+                      title: Text('Version ${v.version}'),
+                      subtitle: Text(v.createdAt.toLocal().toString()),
+                      onTap: () {
+                        setState(() {
+                          _controller.text = v.content;
+                        });
+                        context.pop();
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Loaded version ${v.version}')));
+                      },
+                    );
+                  },
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, st) => Center(child: Text('Error loading history: $e')),
+            );
+          },
+        );
+      },
+    );
   }
 }
