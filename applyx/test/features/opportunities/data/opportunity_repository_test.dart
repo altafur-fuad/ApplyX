@@ -23,7 +23,7 @@ void main() {
       final apiClient = ApiClient(
         getToken: () async => null,
         httpClient: MockClient((request) async {
-          expect(request.url.path, '/v1/opportunities');
+          expect(request.url.path, '/api/v1/opportunities');
           expect(request.url.queryParameters['limit'], '10');
           expect(request.url.queryParameters['q'], 'flutter');
           return http.Response(jsonEncode({'items': [mockOppJson], 'next_cursor': null}), 200);
@@ -40,7 +40,7 @@ void main() {
       final apiClient = ApiClient(
         getToken: () async => null,
         httpClient: MockClient((request) async {
-          expect(request.url.path, '/v1/opportunities/opp1');
+          expect(request.url.path, '/api/v1/opportunities/opp1');
           return http.Response(jsonEncode(mockOppJson), 200);
         }),
       );
@@ -54,7 +54,7 @@ void main() {
       final apiClient = ApiClient(
         getToken: () async => null,
         httpClient: MockClient((request) async {
-          expect(request.url.path, '/v1/opportunities/opp1/match');
+          expect(request.url.path, '/api/v1/opportunities/opp1/match');
           return http.Response(jsonEncode({
             'eligibility_status': 'eligible',
             'fit_reasons': ['Great fit'],
@@ -73,7 +73,7 @@ void main() {
       final apiClient = ApiClient(
         getToken: () async => null,
         httpClient: MockClient((request) async {
-          expect(request.url.path, '/v1/opportunities/opp1/save');
+          expect(request.url.path, '/api/v1/opportunities/opp1/save');
           expect(request.method, 'POST');
           return http.Response('{}', 200);
         }),

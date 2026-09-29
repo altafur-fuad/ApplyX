@@ -12,6 +12,7 @@ class ApiException implements Exception {
   });
 
   factory ApiException.fromJson(int statusCode, Map<String, dynamic> json) {
+    // 1. Existing custom error envelope
     final error = json['error'] as Map<String, dynamic>?;
     if (error != null) {
       return ApiException(
@@ -21,6 +22,31 @@ class ApiException implements Exception {
         requestId: error['request_id'] as String?,
       );
     }
+
+    // 2. FastAPI default detail format
+    final detail = json['detail'];
+    if (detail != null) {
+      if (detail is String) {
+        return ApiException(
+          statusCode: statusCode,
+          code: 'HTTP_ERROR',
+          message: detail,
+        );
+      } else if (detail is List && detail.isNotEmpty) {
+        try {
+          final firstError = detail.first as Map<String, dynamic>;
+          final msg = firstError['msg'] as String? ?? 'Validation error';
+          final loc = (firstError['loc'] as List?)?.join('.') ?? '';
+          return ApiException(
+            statusCode: statusCode,
+            code: 'VALIDATION_ERROR',
+            message: loc.isNotEmpty ? '$msg at $loc' : msg,
+          );
+        } catch (_) {}
+      }
+    }
+
+    // 3. Fallback
     return ApiException(
       statusCode: statusCode,
       code: 'UNKNOWN_ERROR',

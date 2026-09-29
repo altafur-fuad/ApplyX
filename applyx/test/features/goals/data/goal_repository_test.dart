@@ -25,7 +25,7 @@ void main() {
       final apiClient = ApiClient(
         getToken: () async => null,
         httpClient: MockClient((request) async {
-          expect(request.url.path, '/v1/goals');
+          expect(request.url.path, '/api/v1/goals');
           return http.Response(jsonEncode(mockResponse), 200);
         }),
       );
@@ -50,7 +50,7 @@ void main() {
       final apiClient = ApiClient(
         getToken: () async => null,
         httpClient: MockClient((request) async {
-          expect(request.url.path, '/v1/goals');
+          expect(request.url.path, '/api/v1/goals');
           expect(request.method, 'POST');
           return http.Response(jsonEncode(mockResponse), 201);
         }),

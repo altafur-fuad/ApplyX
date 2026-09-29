@@ -11,7 +11,7 @@ void main() {
       final client = ApiClient(
         getToken: () async => null,
         httpClient: MockClient((request) async {
-          expect(request.url.toString(), 'http://10.0.2.2:8000/v1/test');
+          expect(request.url.toString(), 'http://10.0.2.2:8000/api/v1/test');
           return http.Response('{}', 200);
         }),
       );
@@ -97,6 +97,44 @@ void main() {
       } on ApiException catch (e) {
         expect(e.statusCode, 500);
         expect(e.code, 'HTTP_ERROR');
+      }
+    });
+
+    test('parses FastAPI detail string', () async {
+      final client = ApiClient(
+        baseUrl: 'http://test.com',
+        getToken: () async => null,
+        httpClient: MockClient((request) async {
+          return http.Response('{"detail": "Not Found"}', 404);
+        }),
+      );
+
+      try {
+        await client.get('/path');
+        fail('Should have thrown an exception');
+      } on ApiException catch (e) {
+        expect(e.statusCode, 404);
+        expect(e.code, 'HTTP_ERROR');
+        expect(e.message, 'Not Found');
+      }
+    });
+
+    test('parses FastAPI validation error array', () async {
+      final client = ApiClient(
+        baseUrl: 'http://test.com',
+        getToken: () async => null,
+        httpClient: MockClient((request) async {
+          return http.Response('{"detail": [{"loc": ["body", "title"], "msg": "field required", "type": "value_error.missing"}]}', 422);
+        }),
+      );
+
+      try {
+        await client.get('/path');
+        fail('Should have thrown an exception');
+      } on ApiException catch (e) {
+        expect(e.statusCode, 422);
+        expect(e.code, 'VALIDATION_ERROR');
+        expect(e.message, 'field required at body.title');
       }
     });
   });
