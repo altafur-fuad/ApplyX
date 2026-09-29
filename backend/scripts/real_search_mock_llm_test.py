@@ -36,7 +36,7 @@ async def main():
     if diagnostics.get("provider") != "tavily":
         print("[FAIL] SEARCH_PROVIDER is not tavily.")
         sys.exit(1)
-        
+
     if not diagnostics.get("configured") or diagnostics.get("state") == "CONFIG_INVALID":
         print(f"[FAIL] Invalid Search configuration: {diagnostics.get('error')}")
         sys.exit(1)
@@ -55,9 +55,9 @@ async def main():
     print("\nSEARCH:")
     print(f"provider={search_provider.provider_name()}")
     print("mode=real")
-    
+
     print("\n[Executing Pipeline]")
-    
+
     orch = Orchestrator()
     goal_data = {
         "id": "tavily_mock_test_goal",
@@ -67,18 +67,18 @@ async def main():
     profile_data = {
         "skills": ["Python", "React", "Git"]
     }
-    
+
     # Wrap the factory to capture search latency on the provider
     original_get_search_provider = get_search_provider
     search_latency_ms = 0
     result_count = 0
-    
+
     import app.services.search.factory as search_factory
-    
+
     def wrapped_get_provider(force_provider: Optional[str] = None):
         provider = original_get_search_provider(force_provider=force_provider)
         original_search = provider.search
-        
+
         async def wrapped_search(*args, **kwargs):
             nonlocal search_latency_ms, result_count
             start = time.time()
@@ -88,30 +88,30 @@ async def main():
                 return res
             finally:
                 search_latency_ms += int((time.time() - start) * 1000)
-                
+
         provider.search = wrapped_search
         return provider
-        
+
     search_factory.get_search_provider = wrapped_get_provider
-    
+
     try:
         state = await orch.run(goal_data=goal_data, profile_data=profile_data)
     except Exception as e:
         print(f"[FAIL] Pipeline execution failed safely: {e.__class__.__name__} - {e}")
         print("search_status=failed")
         sys.exit(1)
-        
+
     # Find specific task statuses
     research_task = next((t for t in state.tasks if t.agent_type.value == "research"), None)
     search_status = "success" if research_task and research_task.status.value == "completed" else "failed"
-    
+
     normalization_status = "success" if search_status == "success" else "skipped"
     deduplication_status = "success" if search_status == "success" else "skipped"
     evidence_status = "success" if search_status == "success" else "skipped"
-    
+
     verification_status = "passed"
     quality_gate = "passed"
-    
+
     if state.status == RunStatus.FAILED:
         if state.error and "Quality Gate" in state.error:
             quality_gate = "failed"
@@ -120,7 +120,7 @@ async def main():
             pass
         else:
             verification_status = "failed"
-            
+
     print(f"\nsearch_status={search_status}")
     print(f"result_count={result_count}")
     print(f"normalization_status={normalization_status}")

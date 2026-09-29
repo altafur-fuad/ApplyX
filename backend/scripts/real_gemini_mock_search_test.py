@@ -27,7 +27,7 @@ async def main():
     if diagnostics.get("provider") != "gemini":
         print("[FAIL] LLM_PROVIDER is not gemini. Please configure .env")
         sys.exit(1)
-        
+
     if not diagnostics.get("configured") or diagnostics.get("state") == "CONFIG_INVALID":
         print(f"[FAIL] Invalid Gemini configuration: {diagnostics.get('error')}")
         sys.exit(1)
@@ -54,33 +54,33 @@ async def main():
     print("\nSEARCH:")
     print(f"provider={search_provider.provider_name()}")
     print("mode=local")
-    
+
     if search_provider.provider_name() != "mock":
         print("[FAIL] SEARCH_PROVIDER must be mock for this test.")
         sys.exit(1)
 
-    # We want to limit Gemini calls to just the Planner to save requests, 
+    # We want to limit Gemini calls to just the Planner to save requests,
     # but run the pipeline. So we will intercept the orchestrator or just run it.
     # The requirement: "Prefer one planner request. If one request is enough, stop after one."
     # The safest way is to instantiate PlannerAgent, get the plan, then push it to Verification
     # OR run Orchestrator but mock the LLM factory after planning.
-    
-    # Actually, the user says: "Use the existing PlannerAgent. Use the existing Mock Search provider. 
+
+    # Actually, the user says: "Use the existing PlannerAgent. Use the existing Mock Search provider.
     # Execute the existing pipeline as far as safe. Run Verification. Run Quality Gate."
-    
-    # Let's run the orchestrator with a very simple goal that only requires research, 
+
+    # Let's run the orchestrator with a very simple goal that only requires research,
     # or just let it run. Mock search returns deterministic results.
-    
+
     print("\n[Executing Pipeline]")
-    
+
     # We will use the orchestrator, but we will limit the tools available to force a simpler plan
     # or we can patch the LLM provider back to mock after the planner generates the plan,
     # ensuring we only use 1 real Gemini request.
-    
+
     import app.services.llm.factory as llm_factory
     from app.services.llm.providers.mock import MockLLMProvider
     from app.services.llm.retry import RetryLLMProviderWrapper
-    
+
     orch = Orchestrator()
     goal_data = {
         "id": "gemini_mock_test_goal",
@@ -90,11 +90,11 @@ async def main():
     profile_data = {
         "skills": ["Python", "React"]
     }
-    
+
     # To restrict LLM calls to exactly 1 (for the planner), we will wrap the planner's create_plan
     # to switch the provider to mock immediately after it returns.
     original_create_plan = orch.planner.create_plan
-    
+
     async def wrapped_create_plan(*args, **kwargs):
         import time
         start = time.time()
@@ -106,9 +106,9 @@ async def main():
             # Immediately switch LLM provider to mock to prevent further real API calls
             llm_factory.set_llm_provider(RetryLLMProviderWrapper(MockLLMProvider()))
         return plan
-        
+
     orch.planner.create_plan = wrapped_create_plan
-    
+
     try:
         state = await orch.run(goal_data=goal_data, profile_data=profile_data)
     except Exception as e:
@@ -116,20 +116,20 @@ async def main():
         # Safe string fallback
         print("planner_status=failed")
         sys.exit(1)
-        
+
     planner_status = "success" if state.plan else "failed"
     plan_validation = "passed" if not state.error or "Plan validation blocked" not in state.error else "failed"
-    
+
     # Check research task specifically
     research_task = next((t for t in state.tasks if t.agent_type.value == "research"), None)
     research_status = research_task.status.value if research_task else "skipped"
-    
+
     if research_status == "completed":
         research_status = "success"
-        
+
     verification_status = "passed"
     quality_gate = "passed"
-    
+
     if state.status == RunStatus.FAILED:
         if state.error and "Quality Gate" in state.error:
             quality_gate = "failed"
@@ -137,7 +137,7 @@ async def main():
             plan_validation = "failed"
         else:
             verification_status = "failed"
-            
+
     print(f"\nplanner_status={planner_status}")
     print(f"plan_validation={plan_validation}")
     print(f"research_status={research_status}")
