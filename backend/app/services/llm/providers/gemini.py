@@ -5,7 +5,7 @@ from app.services.llm.base import LLMProvider
 from app.services.llm.models import LLMRequest, LLMResponse, LLMUsage, LLMCapabilities, LLMToolCall
 from app.services.llm.errors import (
     LLMAuthenticationError, LLMQuotaError, LLMRateLimitError, 
-    LLMTimeoutError, LLMInvalidResponseError, LLMError
+    LLMTimeoutError, LLMInvalidResponseError, LLMError, LLMUnavailableError
 )
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,9 @@ class GeminiLLMProvider(LLMProvider):
         import openai
         self._client = openai.AsyncOpenAI(
             api_key=api_key,
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            max_retries=0,
+            timeout=60.0
         )
         self._default_model = default_model
 
@@ -45,6 +47,8 @@ class GeminiLLMProvider(LLMProvider):
             return LLMRateLimitError(str(e))
         if isinstance(e, openai.APITimeoutError):
             return LLMTimeoutError(str(e))
+        if isinstance(e, openai.APIConnectionError):
+            return LLMUnavailableError(str(e))
         if isinstance(e, openai.APIError):
             return LLMInvalidResponseError(str(e))
         return LLMError(str(e))

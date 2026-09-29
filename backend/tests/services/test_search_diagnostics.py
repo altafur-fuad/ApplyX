@@ -63,17 +63,8 @@ async def test_mock_search_request(monkeypatch):
     assert response.results[0].title == "Software Engineering Intern"
     assert response.results[0].source_name == "example_board"
 
-def test_fallback_search_provider(monkeypatch):
+def test_unsupported_search_provider(monkeypatch):
     monkeypatch.setenv("SEARCH_PROVIDER", "unknown_provider")
-    monkeypatch.setenv("SEARCH_FALLBACK_PROVIDER", "mock")
-    
-    # Should fallback silently to mock
-    provider = get_search_provider()
-    assert provider.provider_name() == "mock"
-
-def test_fallback_search_provider_disabled(monkeypatch):
-    monkeypatch.setenv("SEARCH_PROVIDER", "unknown_provider")
-    monkeypatch.setenv("SEARCH_FALLBACK_PROVIDER", "mock")
     
     with pytest.raises(SearchConfigurationError):
-        get_search_provider(disable_fallback=True)
+        get_search_provider()

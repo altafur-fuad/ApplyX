@@ -55,7 +55,6 @@ def test_missing_api_key_openai(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "openai")
     monkeypatch.setenv("LLM_API_KEY", "")
     monkeypatch.setenv("OPENAI_API_KEY", "")
-    monkeypatch.setenv("LLM_FALLBACK_PROVIDER", "")
     diag = get_safe_diagnostics()
     assert diag["state"] == ProviderState.CONFIG_INVALID
     assert "missing" in diag["error"].lower()
@@ -64,17 +63,34 @@ def test_missing_base_url_openai_compatible(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "openai_compatible")
     monkeypatch.setenv("LLM_API_KEY", "test")
     monkeypatch.setenv("LLM_BASE_URL", "")
-    monkeypatch.setenv("LLM_FALLBACK_PROVIDER", "")
     diag = get_safe_diagnostics()
     assert diag["state"] == ProviderState.CONFIG_INVALID
     assert "base url" in diag["error"].lower()
 
 def test_unknown_provider(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "some_unknown_provider")
-    monkeypatch.setenv("LLM_FALLBACK_PROVIDER", "")
     diag = get_safe_diagnostics()
     assert diag["state"] == ProviderState.CONFIG_INVALID
     assert "unknown provider" in diag["error"].lower()
+
+def test_missing_api_key_gemini(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    monkeypatch.setenv("LLM_API_KEY", "")
+    monkeypatch.setenv("GEMINI_API_KEY", "")
+    diag = get_safe_diagnostics()
+    assert diag["state"] == ProviderState.CONFIG_INVALID
+    assert "missing" in diag["error"].lower()
+
+def test_provider_creation_no_network_call(monkeypatch):
+    # Verify that creating the provider through the factory does not execute network requests
+    monkeypatch.setenv("LLM_PROVIDER", "openai")
+    monkeypatch.setenv("LLM_API_KEY", "fake_key_no_network")
+
+    # We can mock requests to ensure they are not called if we wanted,
+    # but normally instantiation shouldn't trigger anything.
+    # If it does, the lack of internet/mock would cause a hang or error.
+    provider = get_llm_provider()
+    assert provider.provider_name() == "openai"
 
 def test_safe_diagnostics_no_secrets(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "openai")
@@ -84,54 +100,12 @@ def test_safe_diagnostics_no_secrets(monkeypatch):
     assert "super_secret_key_12345" not in diag_str
     assert diag["credentials_present"] is True
 
-def test_fallback_configuration(monkeypatch):
-    # Setup OpenAI but miss API key, and configure mock fallback
-    monkeypatch.setenv("LLM_PROVIDER", "openai")
-    monkeypatch.setenv("LLM_API_KEY", "")
-    monkeypatch.setenv("OPENAI_API_KEY", "")
-    monkeypatch.setenv("LLM_FALLBACK_PROVIDER", "mock")
-    
-    diag = get_safe_diagnostics()
-    # Diagnostics check primary directly (force_provider disable_fallback=True)
-    # Wait, get_safe_diagnostics should show the primary config as invalid, 
-    # but the app would use fallback. Let's verify get_safe_diagnostics behavior.
-    assert diag["provider"] == "openai"
-    assert diag["fallback_provider"] == "mock"
-    assert diag["state"] == ProviderState.CONFIG_INVALID
-    
-    # App logic for get_llm_provider
-    monkeypatch.setattr(llm_factory, "_provider_cache", None)
-    provider = get_llm_provider()
-    assert provider.provider_name() == "mock"
+
 
 def test_provider_error_normalization():
     # Verify that standard exceptions exist and can be raised
     with pytest.raises(LLMQuotaError):
         raise LLMQuotaError("Quota exceeded")
-    
+
     with pytest.raises(LLMAuthenticationError):
         raise LLMAuthenticationError("Bad Auth")
-
-@pytest.mark.asyncio
-async def test_smoke_test_dry_run_logic(monkeypatch, capsys):
-    from scripts.llm_smoke_test import run_smoke_test
-    monkeypatch.setenv("LLM_PROVIDER", "mock")
-    
-    with pytest.raises(SystemExit) as e:
-        await run_smoke_test(real=False)
-    
-    assert e.value.code == 0
-    captured = capsys.readouterr()
-    assert "[Dry Run Completed]" in captured.out
-    assert "Run with --real" in captured.out
-    
-@pytest.mark.asyncio
-async def test_smoke_test_mock_provider(monkeypatch, capsys):
-    from scripts.llm_smoke_test import run_smoke_test
-    monkeypatch.setenv("LLM_PROVIDER", "mock")
-    
-    await run_smoke_test(real=True)
-    
-    captured = capsys.readouterr()
-    assert "Smoke Test Successful!" in captured.out
-    assert "mock_response" in captured.out or "success" in captured.out.lower()

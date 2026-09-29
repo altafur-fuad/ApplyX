@@ -21,52 +21,66 @@ async def run_smoke_test(real: bool = False):
     print("========================================")
     print("    ApplyX LLM Provider Smoke Test")
     print("========================================")
-    
+
     # 1. Configuration Validation and Safe Diagnostics
     diagnostics = get_safe_diagnostics()
-    
+
     print("\n[Diagnostics]")
     for k, v in diagnostics.items():
         print(f"  {k}: {v}")
-        
+
     if not diagnostics.get("configured"):
         print("\n[FAIL] Error: No LLM provider configured.")
         sys.exit(1)
-        
+
     if diagnostics.get("state") == "CONFIG_INVALID":
         print(f"\n[FAIL] Error: Provider configuration is invalid: {diagnostics.get('error')}")
         sys.exit(1)
     print("\n[OK] Local configuration is valid.")
-    
+
     if not real:
+        print("mode=dry-run")
         print("\n[Dry Run Completed]")
         print("Run with --real to perform an actual network request to the provider.")
         sys.exit(0)
-        
+
     # 2. Real Smoke Test
     print("\n[Real Test]")
     print("Initializing provider...")
-    
+
     try:
-        # We explicitly disable fallback for the smoke test to test the actual configured primary provider
-        provider = get_llm_provider(disable_fallback=True)
+        # We explicitly rely on the primary configured provider for the smoke test
+        provider = get_llm_provider()
     except Exception as e:
         print(f"[FAIL] Initialization Failed: {e.__class__.__name__} - {str(e)}")
         sys.exit(1)
-        
-    print(f"Provider: {provider.provider_name()}")
-    print(f"Model: {provider.model_name()}")
+
+    print(f"provider={provider.provider_name()}")
+    print(f"model={provider.model_name()}")
+    print("mode=real")
+
+    if provider.provider_name() == "mock":
+        print("status=READY_LOCAL")
+        print("\n[Notice] Mock provider does not require remote verification.")
+        sys.exit(0)
+
     print("Sending smoke test request...")
-    
+
     request = LLMRequest(
         messages=[LLMMessage(role="user", content="Reply with exactly: ApplyX smoke test successful")]
     )
-    
+
     try:
+        import time
+        start_time = time.time()
         response = await provider.complete(request)
+        latency_ms = int((time.time() - start_time) * 1000)
+
+        print("status=REMOTE_VERIFIED")
+        print(f"latency_ms={latency_ms}")
         print("\n[OK] Smoke Test Successful!")
         print(f"Response: '{response.content.strip()}'")
-        
+
         if response.usage:
             print("\n[Usage Metadata]")
             print(f"  Input Tokens: {response.usage.input_tokens}")
@@ -74,8 +88,9 @@ async def run_smoke_test(real: bool = False):
             print(f"  Total Tokens: {response.usage.total_tokens}")
         else:
             print("\n[Usage Metadata] Not provided by adapter.")
-            
+
     except LLMError as e:
+        print(f"status=REMOTE_FAILED")
         print(f"\n[FAIL] Remote Request Failed")
         print(f"  Normalized Error Class: {e.__class__.__name__}")
         print(f"  Details: {str(e)}")
@@ -90,7 +105,7 @@ def main():
     parser = argparse.ArgumentParser(description="ApplyX LLM Provider Smoke Test")
     parser.add_argument("--real", action="store_true", help="Perform a real network request")
     args = parser.parse_args()
-    
+
     asyncio.run(run_smoke_test(args.real))
 
 if __name__ == "__main__":

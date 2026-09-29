@@ -15,7 +15,6 @@ def get_safe_diagnostics() -> Dict[str, Any]:
     """Safe diagnostics for health checks. Never exposes secrets."""
     settings = get_settings()
     provider_name = settings.llm_provider
-    fallback = settings.llm_fallback_provider
     
     state = ProviderState.NOT_CONFIGURED
     
@@ -44,7 +43,7 @@ def get_safe_diagnostics() -> Dict[str, Any]:
         pass
 
     try:
-        provider = get_llm_provider(force_provider=provider_name, disable_fallback=True)
+        provider = get_llm_provider(force_provider=provider_name)
         state = ProviderState.READY_LOCAL
         model = provider.model_name()
         caps = provider.capabilities().model_dump()
@@ -61,7 +60,6 @@ def get_safe_diagnostics() -> Dict[str, Any]:
 
     return {
         "provider": provider_name,
-        "fallback_provider": fallback,
         "model": model,
         "state": state.value,
         "configured": state != ProviderState.NOT_CONFIGURED,

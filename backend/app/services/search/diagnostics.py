@@ -14,7 +14,6 @@ class SearchProviderState(str, Enum):
 def get_safe_search_diagnostics() -> Dict[str, Any]:
     settings = get_settings()
     provider_name = settings.search_provider
-    fallback = settings.search_fallback_provider
     
     state = SearchProviderState.NOT_CONFIGURED
     
@@ -39,7 +38,7 @@ def get_safe_search_diagnostics() -> Dict[str, Any]:
         pass
 
     try:
-        provider = get_search_provider(force_provider=provider_name, disable_fallback=True)
+        provider = get_search_provider(force_provider=provider_name)
         state = SearchProviderState.READY_LOCAL
         caps = provider.capabilities().model_dump()
     except SearchConfigurationError as e:
@@ -53,7 +52,6 @@ def get_safe_search_diagnostics() -> Dict[str, Any]:
 
     return {
         "provider": provider_name,
-        "fallback_provider": fallback,
         "state": state.value,
         "configured": state != SearchProviderState.NOT_CONFIGURED,
         "credentials_present": credentials_present,
