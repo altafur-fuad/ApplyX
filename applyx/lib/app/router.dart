@@ -14,6 +14,9 @@ import '../../features/opportunities/presentation/opportunity_results_screen.dar
 import '../../features/opportunities/presentation/opportunity_detail_screen.dart';
 import '../../features/applications/presentation/approval_screen.dart';
 import '../../features/applications/presentation/application_tracker_screen.dart';
+import '../../features/applications/presentation/application_detail_screen.dart';
+import '../../features/documents/presentation/document_editor_screen.dart';
+import '../../features/documents/domain/application_document.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../core/theme/app_shell.dart';
@@ -150,6 +153,20 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: AppRoutes.applicationTracker,
                 builder: (context, state) => const ApplicationTrackerScreen(),
                 routes: [
+                  GoRoute(
+                    path: 'application-detail/:id',
+                    builder: (context, state) {
+                      final id = state.pathParameters['id']!;
+                      return ApplicationDetailScreen(id: id);
+                    },
+                  ),
+                  GoRoute(
+                    path: 'document-editor/:id',
+                    builder: (context, state) {
+                      final doc = state.extra as ApplicationDocument;
+                      return DocumentEditorScreen(document: doc);
+                    },
+                  ),
                   GoRoute(
                     path: 'approval/:id',
                     builder: (context, state) {

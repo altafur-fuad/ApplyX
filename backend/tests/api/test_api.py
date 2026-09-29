@@ -120,10 +120,27 @@ def test_documents(mock_supabase_client):
     
     doc_id = str(uuid.uuid4())
     app_id = str(uuid.uuid4())
+    opp_id = str(uuid.uuid4())
+    
+    # Need to mock the 4 selects in create_document_draft and the insert
+    mock_eq = MagicMock()
+    mock_supabase_client.table().select().eq.return_value = mock_eq
+    mock_eq.eq.return_value = mock_eq
+    
+    mock_eq.execute.side_effect = [
+        MagicMock(data=[{"opportunity_id": opp_id}]),
+        MagicMock(data=[{"id": opp_id, "title": "Opp"}]),
+        MagicMock(data=[{"user_id": user_id}]),
+        MagicMock(data=[{"analysis_json": {}}]),
+        MagicMock(data=[]) # for save check
+    ]
     
     mock_supabase_client.table().insert().execute.return_value = MagicMock(data=[{"id": doc_id, "user_id": user_id, "application_id": app_id, "kind": "resume", "title": "Draft", "content": "test", "version": 1, "is_draft": True, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}])
     
-    res = client.post("/api/v1/documents/draft", json={"application_id": app_id, "kind": "resume", "instruction": "test"}, headers={"Authorization": "Bearer valid_token"})
+    with patch("app.agents.document.DocumentAgent.execute") as mock_agent_exec:
+        mock_agent_exec.return_value = {"document_result": {}, "saved_document": {"id": doc_id, "kind": "resume", "user_id": user_id, "application_id": app_id, "title": "t", "content": "c", "version": 1, "is_draft": True, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}}
+        res = client.post("/api/v1/documents/draft", json={"application_id": app_id, "kind": "resume", "instruction": "test"}, headers={"Authorization": "Bearer valid_token"})
+    
     if res.status_code != 200: print(res.json()); assert res.status_code == 200
     assert res.json()["kind"] == "resume"
 
@@ -142,3 +159,42 @@ def test_approvals(mock_supabase_client):
     res = client.post(f"/api/v1/approvals/{approval_id}/approve", headers={"Authorization": "Bearer valid_token"})
     if res.status_code != 200: print(res.json()); assert res.status_code == 200
     assert res.json()["status"] == "approved"
+
+def test_application_checklist(mock_supabase_client):
+    user_id = str(uuid.uuid4())
+    user_mock = MagicMock()
+    user_mock.user.id = user_id
+    mock_supabase_client.auth.get_user.return_value = user_mock
+    
+    app_id = str(uuid.uuid4())
+    doc1_id = str(uuid.uuid4())
+    doc2_id = str(uuid.uuid4())
+    
+    app_res = MagicMock(data=[{"id": app_id, "status": "draft", "opportunities": {"requirements_json": ["req1", "req2"]}}])
+    doc_res = MagicMock(data=[{"id": doc1_id, "kind": "resume", "title": "t", "version": 1}, {"id": doc2_id, "kind": "cover_letter", "title": "t", "version": 1}])
+    
+    mock_supabase_client.table().select().eq().eq().execute.side_effect = [app_res, doc_res]
+    
+    res = client.get(f"/api/v1/applications/{app_id}/checklist", headers={"Authorization": "Bearer valid_token"})
+    if res.status_code != 200: print(res.json()); assert res.status_code == 200
+    checklist = res.json()["checklist"]
+    assert len(checklist) == 5 # resume, cover_letter, 2 reqs, final
+
+def test_application_documents(mock_supabase_client):
+    user_id = str(uuid.uuid4())
+    user_mock = MagicMock()
+    user_mock.user.id = user_id
+    mock_supabase_client.auth.get_user.return_value = user_mock
+    
+    app_id = str(uuid.uuid4())
+    doc_id = str(uuid.uuid4())
+    
+    app_res = MagicMock(data=[{"id": app_id}])
+    doc_res = MagicMock(data=[{"id": doc_id, "kind": "resume", "title": "t", "content": "c", "version": 1, "is_draft": True, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z", "user_id": user_id, "application_id": app_id}])
+    
+    mock_supabase_client.table().select().eq().eq().execute.return_value = app_res
+    mock_supabase_client.table().select().eq().eq().order().execute.return_value = doc_res
+    
+    res = client.get(f"/api/v1/documents/application/{app_id}", headers={"Authorization": "Bearer valid_token"})
+    if res.status_code != 200: print(res.json()); assert res.status_code == 200
+    assert len(res.json()) == 1
