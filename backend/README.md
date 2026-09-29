@@ -267,3 +267,9 @@ The backend utilizes robust provider adapters (OpenAI, Gemini, OpenAI-compatible
 - **Error Mapping**: Network, rate-limit, timeout, and authentication failures are safely mapped to unified generic errors.
 - **Resilience**: Configurable hard timeouts and bounded retry mechanisms handle transient provider unavailability without causing infinite loops or blocking indefinitely.
 - **Safe Testing**: Normal adapter tests completely mock HTTP boundaries, guaranteeing no real API requests or quota are consumed during development.
+
+## Real Search + Mock LLM validation
+Explicitly validates that the existing pipeline accepts real Search queries (e.g. Tavily) while utilizing a Mock LLM to prevent unnecessary costs. This guarantees that normalized SearchResult data safely flows through the entire Opportunity Pipeline (Normalization -> Deduplication -> Evidence -> Eligibility -> Profile Fit -> Verification -> Quality Gate) without invoking automatic live LLM requests.
+- Run via: python scripts/real_search_mock_llm_test.py
+- LLM=mock, SEARCH=tavily
+- Note: This makes exactly one controlled live request. It does not fabricate opportunities and is kept separate from standard offline testing (pytest).

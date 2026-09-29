@@ -18,7 +18,7 @@ def reset_search_provider_cache():
 def test_mock_search_diagnostics_local(monkeypatch):
     monkeypatch.setenv("SEARCH_PROVIDER", "mock")
     diagnostics = get_safe_search_diagnostics()
-    
+
     assert diagnostics["provider"] == "mock"
     assert diagnostics["state"] == SearchProviderState.READY_LOCAL
     assert diagnostics["configured"] is True
@@ -29,9 +29,13 @@ def test_mock_search_diagnostics_local(monkeypatch):
 def test_tavily_search_diagnostics_missing_key(monkeypatch):
     monkeypatch.setenv("SEARCH_PROVIDER", "tavily")
     monkeypatch.delenv("SEARCH_API_KEY", raising=False)
-    
+
+    from app.core.config import get_settings
+    settings = get_settings()
+    monkeypatch.setattr(settings, "search_api_key", None)
+
     diagnostics = get_safe_search_diagnostics()
-    
+
     assert diagnostics["provider"] == "tavily"
     assert diagnostics["state"] == SearchProviderState.CONFIG_INVALID
     assert diagnostics["configured"] is True
@@ -42,9 +46,9 @@ def test_tavily_search_diagnostics_valid(monkeypatch):
     monkeypatch.setenv("SEARCH_PROVIDER", "tavily")
     monkeypatch.setenv("SEARCH_API_KEY", "tvly-test-key")
     monkeypatch.setenv("SEARCH_BASE_URL", "https://api.tavily.com")
-    
+
     diagnostics = get_safe_search_diagnostics()
-    
+
     assert diagnostics["provider"] == "tavily"
     assert diagnostics["state"] == SearchProviderState.READY_LOCAL
     assert diagnostics["configured"] is True
@@ -55,16 +59,16 @@ def test_tavily_search_diagnostics_valid(monkeypatch):
 async def test_mock_search_request(monkeypatch):
     monkeypatch.setenv("SEARCH_PROVIDER", "mock")
     provider = get_search_provider()
-    
+
     request = SearchRequest(query="test query")
     response = await provider.search(request)
-    
+
     assert len(response.results) == 5
     assert response.results[0].title == "Software Engineering Intern"
     assert response.results[0].source_name == "example_board"
 
 def test_unsupported_search_provider(monkeypatch):
     monkeypatch.setenv("SEARCH_PROVIDER", "unknown_provider")
-    
+
     with pytest.raises(SearchConfigurationError):
         get_search_provider()
