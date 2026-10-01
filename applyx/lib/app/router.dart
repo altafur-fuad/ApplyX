@@ -19,6 +19,7 @@ import '../../features/documents/presentation/document_editor_screen.dart';
 import '../../features/documents/domain/application_document.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/discover/presentation/discover_screen.dart';
 import '../../core/theme/app_shell.dart';
 
 class AppRoutes {
@@ -36,6 +37,8 @@ class AppRoutes {
   static const String opportunityResults = '/opportunity-results';
   static const String opportunityDetail =
       '/opportunity-results/opportunity-detail';
+
+  static const String discover = '/discover';
 
   static const String applicationTracker = '/application-tracker';
   static const String approval = '/application-tracker/approval';
@@ -129,8 +132,22 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           StatefulShellBranch(
-            navigatorKey: _shellNavigatorResultsKey,
+            navigatorKey: _shellNavigatorResultsKey, // Kept same key variable for simplicity but change route
             routes: [
+              GoRoute(
+                path: AppRoutes.discover,
+                builder: (context, state) => const DiscoverScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'opportunity-detail/:id',
+                    builder: (context, state) {
+                      final id = state.pathParameters['id']!;
+                      return OpportunityDetailScreen(id: id);
+                    },
+                  ),
+                ],
+              ),
+              // We also need OpportunityResultsScreen accessible (e.g. from Home)
               GoRoute(
                 path: AppRoutes.opportunityResults,
                 builder: (context, state) => const OpportunityResultsScreen(),

@@ -7,6 +7,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/glass_card.dart';
+import '../../../core/widgets/organic_background.dart';
 
 /// Onboarding data model for each page.
 class _OnboardingPage {
@@ -23,11 +25,9 @@ class _OnboardingPage {
 
 /// Onboarding screen — 3 short visual steps.
 ///
-/// design.md § 6.2:
-/// 1. Define your goal.
-/// 2. Let your agents do the research.
-/// 3. Review and approve actions.
-/// CTA: "Get Started"
+/// design.md § 25.1:
+/// Tell me your goal. I'll do the legwork. 
+/// Large open composition, organic gradient shapes, cream background, subtle glass CTA.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -42,21 +42,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   static const List<_OnboardingPage> _pages = [
     _OnboardingPage(
       icon: Icons.flag_outlined,
-      title: 'Define your goal',
+      title: 'Define\nyour goal',
       description:
-          'Tell us what you\'re looking for — internships, research opportunities, hackathons — in your own words.',
+          'Tell us what you\'re looking for — internships, research opportunities, or hackathons.',
     ),
     _OnboardingPage(
       icon: Icons.auto_awesome_outlined,
-      title: 'Let your agents work',
+      title: 'Let agents\ndo the work',
       description:
-          'Your AI agents research opportunities, check eligibility, compare your profile, and prepare application materials.',
+          'Your AI agents research opportunities, check eligibility, compare your profile, and prepare applications.',
     ),
     _OnboardingPage(
       icon: Icons.verified_user_outlined,
-      title: 'Review and approve',
+      title: 'Review &\napprove',
       description:
-          'You stay in control. Review what the agents found and approve actions before anything is sent externally.',
+          'You stay in control. Review what the agents found and approve actions before anything is sent.',
     ),
   ];
 
@@ -85,18 +85,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.pagePadding,
-          ),
+      body: OrganicBackground(
+        child: SafeArea(
           child: Column(
             children: [
               // Skip button
               Align(
                 alignment: Alignment.topRight,
                 child: Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.lg),
+                  padding: const EdgeInsets.only(
+                    top: AppSpacing.lg,
+                    right: AppSpacing.pagePadding,
+                  ),
                   child: TextButton(
                     onPressed: _onGetStarted,
                     child: Text(
@@ -123,33 +123,42 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
               ),
 
-              // Indicators
+              // Glass CTA Area
               Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-                child: SmoothPageIndicator(
-                  controller: _pageController,
-                  count: _pages.length,
-                  effect: const ExpandingDotsEffect(
-                    activeDotColor: AppColors.primary,
-                    dotColor: AppColors.border,
-                    dotHeight: 8,
-                    dotWidth: 8,
-                    expansionFactor: 3,
-                    spacing: 6,
+                padding: const EdgeInsets.all(AppSpacing.pagePadding),
+                child: GlassCard(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Indicators
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                        child: SmoothPageIndicator(
+                          controller: _pageController,
+                          count: _pages.length,
+                          effect: const ExpandingDotsEffect(
+                            activeDotColor: AppColors.primary,
+                            dotColor: AppColors.border,
+                            dotHeight: 8,
+                            dotWidth: 8,
+                            expansionFactor: 3,
+                            spacing: 6,
+                          ),
+                        ),
+                      ),
+                      // CTA button
+                      AppPrimaryButton(
+                        label: _currentPage == _pages.length - 1
+                            ? 'Get Started'
+                            : 'Next',
+                        onPressed: _onNext,
+                      ),
+                    ],
                   ),
                 ),
               ),
-
-              // CTA button
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.section),
-                child: AppPrimaryButton(
-                  label: _currentPage == _pages.length - 1
-                      ? 'Get Started'
-                      : 'Next',
-                  onPressed: _onNext,
-                ),
-              ),
+              const SizedBox(height: AppSpacing.md),
             ],
           ),
         ),
@@ -167,31 +176,45 @@ class _OnboardingPageView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Icon container with subtle gradient background
           Container(
-            width: 120,
-            height: 120,
+            width: 140,
+            height: 140,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.primary.withValues(alpha: 0.15),
-                  AppColors.aiAccent.withValues(alpha: 0.08),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(32),
+              color: AppColors.surfaceElevated.withValues(alpha: 0.5),
+              border: Border.all(color: AppColors.white.withValues(alpha: 0.5)),
+              borderRadius: BorderRadius.circular(40),
             ),
-            child: Icon(page.icon, size: 52, color: AppColors.primary),
+            child: Center(
+              child: Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      AppColors.primary.withValues(alpha: 0.8),
+                      AppColors.aiAccent.withValues(alpha: 0.6),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Icon(page.icon, size: 40, color: AppColors.textPrimary),
+              ),
+            ),
           ),
           const SizedBox(height: AppSpacing.xxl),
           Text(
             page.title,
-            style: AppTypography.h1(),
+            style: AppTypography.display().copyWith(
+              color: AppColors.textPrimary,
+              height: 1.1,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.lg),

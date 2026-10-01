@@ -2,53 +2,52 @@ import 'dart:ui';
 
 /// ApplyX design tokens — color palette.
 ///
-/// Source of truth: design.md § "Final color tokens"
-/// These tokens must match the approved Figma design.
-/// Do not hard-code these values in widgets; use [AppColors] constants.
+/// Source of truth: design.md
+/// These tokens must match the new warm visual language.
 class AppColors {
   AppColors._();
 
   // ── Core palette ──────────────────────────────────────────────────────
 
-  /// App background — darkest surface
-  static const Color background = Color(0xFF0B0F14);
+  /// App background — warm cream
+  static const Color background = Color(0xFFFFF9E8);
 
   /// Default card / container surface
-  static const Color surface = Color(0xFF121821);
+  static const Color surface = Color(0xFFFFF6DC);
 
   /// Elevated card / sheet surface
-  static const Color surfaceElevated = Color(0xFF18212C);
+  static const Color surfaceElevated = Color(0xFFFFF3D2);
 
-  /// Primary brand accent — purple
-  static const Color primary = Color(0xFF7C5CFC);
+  /// Primary brand accent — golden orange
+  static const Color primary = Color(0xFFF2B65D);
 
-  /// AI-state accent — cyan
-  static const Color aiAccent = Color(0xFF39D9FF);
+  /// AI-state accent — warm yellow
+  static const Color aiAccent = Color(0xFFF7C95E);
 
-  /// Success — green
-  static const Color success = Color(0xFF4ADE80);
+  /// Success — soft green
+  static const Color success = Color(0xFF5E9C76);
 
-  /// Warning / human-approval — amber
-  static const Color warning = Color(0xFFFBBF24);
+  /// Warning / human-approval — golden orange
+  static const Color warning = Color(0xFFEFAE58);
 
-  /// Danger / error — rose
-  static const Color danger = Color(0xFFFB7185);
+  /// Danger / error — soft peach/coral
+  static const Color danger = Color(0xFFE58F6B);
 
   // ── Text ──────────────────────────────────────────────────────────────
 
-  /// Primary text — near-white
-  static const Color textPrimary = Color(0xFFF5F7FA);
+  /// Primary text — warm dark brown
+  static const Color textPrimary = Color(0xFF5A4635);
 
   /// Secondary / muted text
-  static const Color textSecondary = Color(0xFF9AA7B5);
+  static const Color textSecondary = Color(0xFF9A8875);
 
   // ── Borders ───────────────────────────────────────────────────────────
 
   /// Default border / divider
-  static const Color border = Color(0xFF263241);
+  static const Color border = Color(0xFFEEDCB6);
 
   // ── Agent state colors ────────────────────────────────────────────────
-  // design.md: cyan = active, green = completed, amber = approval, muted = queued
+  // design.md: 
 
   /// Agent: actively running
   static const Color agentActive = aiAccent;
@@ -60,7 +59,7 @@ class AppColors {
   static const Color agentApproval = warning;
 
   /// Agent: queued / inactive
-  static const Color agentQueued = Color(0xFF4A5568);
+  static const Color agentQueued = textSecondary;
 
   /// Agent: failed
   static const Color agentFailed = danger;
@@ -75,6 +74,7 @@ class AppColors {
 
   /// White with opacity helpers
   static const Color white = Color(0xFFFFFFFF);
+  static const Color white50 = Color(0x80FFFFFF);
   static const Color white10 = Color(0x1AFFFFFF);
   static const Color white05 = Color(0x0DFFFFFF);
 }

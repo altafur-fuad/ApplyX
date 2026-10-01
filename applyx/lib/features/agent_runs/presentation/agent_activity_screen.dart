@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,7 +7,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/surface_card.dart';
+import '../../../core/widgets/glass_card.dart';
+import '../../../core/widgets/organic_background.dart';
 import '../../../core/widgets/app_states.dart';
 import 'providers/agent_provider.dart';
 import '../../goals/presentation/providers/goal_provider.dart';
@@ -27,6 +26,11 @@ class AgentActivityScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Agent Activity'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        titleTextStyle: AppTypography.h3(color: AppColors.textPrimary),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -36,159 +40,187 @@ class AgentActivityScreen extends ConsumerWidget {
           },
         ),
       ),
-      body: SafeArea(
-        child: agentRunAsync.when(
-          data: (run) {
-            if (run == null) {
-              return const AppEmptyState(
-                icon: Icons.auto_awesome,
-                title: 'No active agent',
-                message: 'Start a goal to run the agent.',
-              );
-            }
+      extendBodyBehindAppBar: true,
+      body: OrganicBackground(
+        child: SafeArea(
+          child: agentRunAsync.when(
+            data: (run) {
+              if (run == null) {
+                return const AppEmptyState(
+                  icon: Icons.auto_awesome,
+                  title: 'No active agent',
+                  message: 'Start a goal to run the agent.',
+                );
+              }
 
-            final isComplete = run.status == AgentStatus.completed;
-            final isRunning = run.status == AgentStatus.running ||
-                run.status == AgentStatus.planning ||
-                run.status == AgentStatus.queued;
-            final isFailed = run.status == AgentStatus.failed;
+              final isComplete = run.status == AgentStatus.completed;
+              final isRunning = run.status == AgentStatus.running ||
+                  run.status == AgentStatus.planning ||
+                  run.status == AgentStatus.queued;
+              final isFailed = run.status == AgentStatus.failed;
 
-            return Column(
-              children: [
-                // Goal summary
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.pagePadding,
-                    AppSpacing.lg,
-                    AppSpacing.pagePadding,
-                    AppSpacing.xl,
-                  ),
-                  child: SurfaceCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Current Goal', style: AppTypography.label()),
-                        const SizedBox(height: AppSpacing.sm),
-                        activeGoalAsync.when(
-                          data: (goal) => Text(
-                            goal?.title ?? 'Unknown Goal',
-                            style: AppTypography.h3(),
+              return Column(
+                children: [
+                  // Goal summary
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.pagePadding,
+                      AppSpacing.md,
+                      AppSpacing.pagePadding,
+                      AppSpacing.xl,
+                    ),
+                    child: GlassCard(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.flag_outlined, color: AppColors.primary, size: 20),
+                              const SizedBox(width: 8),
+                              Text('Current Goal', style: AppTypography.label(color: AppColors.primary)),
+                            ],
                           ),
-                          loading: () => const Text('Loading...'),
-                          error: (_, __) => const Text('Error loading goal'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                if (isRunning && run.progress != null) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: LinearProgressIndicator(
-                            value: run.progress! / 100,
-                            backgroundColor: AppColors.border,
-                            color: AppColors.aiAccent,
+                          const SizedBox(height: AppSpacing.sm),
+                          activeGoalAsync.when(
+                            data: (goal) => Text(
+                              goal?.title ?? 'Unknown Goal',
+                              style: AppTypography.h3(),
+                            ),
+                            loading: () => const Text('Loading...'),
+                            error: (_, __) => const Text('Error loading goal'),
                           ),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Text('${run.progress}%', style: AppTypography.label()),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-                ],
 
-                // Timeline
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.pagePadding,
+                  if (isRunning && run.progress != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
+                      child: Container(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        decoration: BoxDecoration(
+                          color: AppColors.white.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.white),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(999),
+                                child: LinearProgressIndicator(
+                                  value: run.progress! / 100,
+                                  minHeight: 8,
+                                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.aiAccent),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Text('${run.progress}%', style: AppTypography.label(color: AppColors.primary)),
+                          ],
+                        ),
+                      ),
                     ),
-                    itemCount: run.events.length,
-                    itemBuilder: (context, index) {
-                      return _AgentEventTile(
-                        event: run.events[index],
-                        isLast: index == run.events.length - 1,
-                        runStatus: run.status,
-                      );
-                    },
-                  ),
-                ),
+                    const SizedBox(height: AppSpacing.xl),
+                  ],
 
-                // View results or Retry button
-                if (isComplete)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.pagePadding,
-                      AppSpacing.lg,
-                      AppSpacing.pagePadding,
-                      AppSpacing.section,
-                    ),
-                    child: AppPrimaryButton(
-                      label: 'View Results',
-                      onPressed: () =>
-                          context.push(AppRoutes.opportunityResults),
-                    ),
-                  ),
-                if (isFailed)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.pagePadding,
-                      AppSpacing.lg,
-                      AppSpacing.pagePadding,
-                      AppSpacing.section,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          run.error ?? 'Agent run failed.',
-                          style: AppTypography.bodySmall(color: AppColors.danger),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        AppPrimaryButton(
-                          label: 'Cancel',
-                          onPressed: () => context.pop(),
-                        ),
-                      ],
+                  // Timeline
+                  Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: AppColors.white.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: AppColors.white.withValues(alpha: 0.5)),
+                      ),
+                      child: ListView.builder(
+                        itemCount: run.events.length,
+                        itemBuilder: (context, index) {
+                          return _AgentEventTile(
+                            event: run.events[index],
+                            isLast: index == run.events.length - 1,
+                            runStatus: run.status,
+                          );
+                        },
+                      ),
                     ),
                   ),
-                if (isRunning)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.pagePadding,
-                      AppSpacing.lg,
-                      AppSpacing.pagePadding,
-                      AppSpacing.section,
+
+                  // View results or Retry button
+                  if (isComplete)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.pagePadding,
+                        AppSpacing.lg,
+                        AppSpacing.pagePadding,
+                        AppSpacing.section,
+                      ),
+                      child: AppPrimaryButton(
+                        label: 'View Results',
+                        onPressed: () =>
+                            context.push(AppRoutes.opportunityResults),
+                      ),
                     ),
-                    child: TextButton(
-                      onPressed: () async {
-                        try {
-                          await ref.read(agentRunProvider.notifier).cancelRun();
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Failed to cancel run.')),
-                            );
+                  if (isFailed)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.pagePadding,
+                        AppSpacing.lg,
+                        AppSpacing.pagePadding,
+                        AppSpacing.section,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            run.error ?? 'Agent run failed.',
+                            style: AppTypography.bodySmall(color: AppColors.danger),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          AppPrimaryButton(
+                            label: 'Cancel',
+                            onPressed: () => context.pop(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (isRunning)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.pagePadding,
+                        AppSpacing.lg,
+                        AppSpacing.pagePadding,
+                        AppSpacing.section,
+                      ),
+                      child: TextButton(
+                        onPressed: () async {
+                          try {
+                            await ref.read(agentRunProvider.notifier).cancelRun();
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Failed to cancel run.')),
+                              );
+                            }
                           }
-                        }
-                      },
-                      child: const Text('Cancel Run', style: TextStyle(color: AppColors.danger)),
+                        },
+                        child: const Text('Cancel Run', style: TextStyle(color: AppColors.danger)),
+                      ),
                     ),
-                  ),
-              ],
-            );
-          },
-          loading: () =>
-              const AppLoadingState(message: 'Initializing Agent...'),
-          error: (error, stack) => AppErrorState(
-            message: 'Failed to connect to agent.',
-            onRetry: () => ref.read(agentRunProvider.notifier).startRun(''), // not fully correct, but handles basic retry
+                ],
+              );
+            },
+            loading: () =>
+                const AppLoadingState(message: 'Initializing Agent...'),
+            error: (error, stack) => AppErrorState(
+              message: 'Failed to connect to agent.',
+              onRetry: () => ref.read(agentRunProvider.notifier).startRun(''), 
+            ),
           ),
         ),
       ),
@@ -208,9 +240,9 @@ class _AgentEventTile extends StatelessWidget {
       return AppColors.danger;
     }
     if (event.eventType.contains('completed') || event.eventType.contains('found')) {
-      return AppColors.agentCompleted;
+      return AppColors.success;
     }
-    return AppColors.agentActive;
+    return AppColors.primary;
   }
 
   IconData get _icon {
@@ -243,17 +275,29 @@ class _AgentEventTile extends StatelessWidget {
         children: [
           // Timeline rail
           SizedBox(
-            width: 32,
+            width: 40,
             child: Column(
               children: [
-                Icon(_icon, color: _dotColor, size: 22),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: _dotColor.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(_icon, color: _dotColor, size: 20),
+                ),
                 if (!isLast)
-                  Expanded(child: Container(width: 2, color: AppColors.border)),
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                    ),
+                  ),
               ],
             ),
           ),
 
-          const SizedBox(width: AppSpacing.md),
+          const SizedBox(width: AppSpacing.sm),
 
           // Content
           Expanded(
@@ -262,23 +306,33 @@ class _AgentEventTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const SizedBox(height: 6), // align with icon
                   Text(
                     _title,
-                    style: AppTypography.body(
-                      color: AppColors.textPrimary,
-                    ),
+                    style: AppTypography.body(color: AppColors.textPrimary),
                   ),
                   if (isLast && (runStatus == AgentStatus.running || runStatus == AgentStatus.planning)) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    SizedBox(
-                      width: 120,
-                      child: LinearProgressIndicator(
-                        backgroundColor: AppColors.aiAccent.withValues(
-                          alpha: 0.15,
-                        ),
-                        color: AppColors.aiAccent,
-                        minHeight: 3,
-                        borderRadius: BorderRadius.circular(2),
+                    const SizedBox(height: AppSpacing.md),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.white.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.white),
+                      ),
+                      child: Row(
+                        children: [
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text('Working...', style: AppTypography.bodySmall(color: AppColors.primary)),
+                        ],
                       ),
                     ),
                   ],

@@ -28,7 +28,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Should now be on onboarding — first page title
-    expect(find.text('Define your goal'), findsOneWidget);
+    expect(find.text('Define\nyour goal'), findsOneWidget);
   });
 
   testWidgets('Onboarding skip navigates to login', (
@@ -41,7 +41,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify on onboarding
-    expect(find.text('Define your goal'), findsOneWidget);
+    expect(find.text('Define\nyour goal'), findsOneWidget);
 
     // Tap "Skip" to go to login
     await tester.tap(find.text('Skip'));

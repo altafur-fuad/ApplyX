@@ -38,9 +38,9 @@ class AppShell extends StatelessWidget {
               label: 'Home',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.search_outlined),
-              activeIcon: Icon(Icons.search),
-              label: 'Results',
+              icon: Icon(Icons.explore_outlined),
+              activeIcon: Icon(Icons.explore),
+              label: 'Discover',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.list_alt_outlined),

@@ -6,7 +6,8 @@ import '../../../app/router.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../core/widgets/surface_card.dart';
+import '../../../core/widgets/glass_card.dart';
+import '../../../core/widgets/organic_background.dart';
 import '../../../core/widgets/app_states.dart';
 import '../../goals/presentation/providers/goal_provider.dart';
 import 'providers/opportunity_provider.dart';
@@ -24,78 +25,97 @@ class OpportunityResultsScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Results'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        titleTextStyle: AppTypography.h3(color: AppColors.textPrimary),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
       ),
-      body: SafeArea(
-        child: opportunitiesAsync.when(
-          data: (opportunities) {
-            if (opportunities.isEmpty) {
-              return AppEmptyState(
-                icon: Icons.search_off,
-                title: 'No opportunities found',
-                message: "Your agent hasn't found any matches yet.",
-                actionLabel: 'Go Back',
-                onAction: () => context.pop(),
-              );
-            }
+      extendBodyBehindAppBar: true,
+      body: OrganicBackground(
+        child: SafeArea(
+          child: opportunitiesAsync.when(
+            data: (opportunities) {
+              if (opportunities.isEmpty) {
+                return AppEmptyState(
+                  icon: Icons.search_off,
+                  title: 'No opportunities found',
+                  message: "Your agent hasn't found any matches yet.",
+                  actionLabel: 'Go Back',
+                  onAction: () => context.pop(),
+                );
+              }
 
-            return CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.pagePadding,
-                      AppSpacing.lg,
-                      AppSpacing.pagePadding,
-                      AppSpacing.xl,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${opportunities.length} opportunities found',
-                          style: AppTypography.caption(),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        activeGoalAsync.when(
-                          data: (goal) => Text(
-                            goal?.title ?? 'No Active Goal',
-                            style: AppTypography.h2(),
+              return CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.pagePadding,
+                        AppSpacing.lg,
+                        AppSpacing.pagePadding,
+                        AppSpacing.xl,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${opportunities.length} matches',
+                                  style: AppTypography.caption(color: AppColors.primary),
+                                ),
+                              ),
+                            ],
                           ),
-                          loading: () => const Text('Loading goal...'),
-                          error: (_, __) => const Text('Goal Error'),
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          'Agent found ${opportunities.length} opportunities.',
-                          style: AppTypography.bodySmall(),
-                        ),
-                      ],
+                          const SizedBox(height: AppSpacing.md),
+                          activeGoalAsync.when(
+                            data: (goal) => Text(
+                              goal?.title ?? 'No Active Goal',
+                              style: AppTypography.h1(color: AppColors.textPrimary),
+                            ),
+                            loading: () => Text('Loading goal...', style: AppTypography.h1()),
+                            error: (_, __) => Text('Goal Error', style: AppTypography.h1()),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            'Your agent has processed these opportunities.',
+                            style: AppTypography.bodySmall(color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
 
-                _sectionHeader('All Opportunities'),
-                ...opportunities.map(
-                  (opp) => _opportunityCard(
-                    context,
-                    opp,
+                  _sectionHeader('All Opportunities'),
+                  ...opportunities.map(
+                    (opp) => _opportunityCard(
+                      context,
+                      opp,
+                    ),
                   ),
-                ),
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: AppSpacing.xl),
-                ),
-              ],
-            );
-          },
-          loading: () =>
-              const AppLoadingState(message: 'Loading opportunities...'),
-          error: (error, stack) => AppErrorState(
-            message: 'Couldn\'t load opportunities.',
-            onRetry: () => ref.refresh(opportunitiesProvider),
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: AppSpacing.xxl),
+                  ),
+                ],
+              );
+            },
+            loading: () =>
+                const AppLoadingState(message: 'Loading opportunities...'),
+            error: (error, stack) => AppErrorState(
+              message: 'Couldn\'t load opportunities.',
+              onRetry: () => ref.refresh(opportunitiesProvider),
+            ),
           ),
         ),
       ),
@@ -107,7 +127,7 @@ class OpportunityResultsScreen extends ConsumerWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.pagePadding,
-          0,
+          AppSpacing.lg,
           AppSpacing.pagePadding,
           AppSpacing.md,
         ),
@@ -128,7 +148,8 @@ class OpportunityResultsScreen extends ConsumerWidget {
           AppSpacing.pagePadding,
           AppSpacing.md,
         ),
-        child: SurfaceCard(
+        child: GlassCard(
+          padding: const EdgeInsets.all(AppSpacing.lg),
           onTap: () =>
               context.push('${AppRoutes.opportunityDetail}/${opportunity.id}'),
           child: Column(
@@ -136,7 +157,7 @@ class OpportunityResultsScreen extends ConsumerWidget {
             children: [
               Text(
                 opportunity.title,
-                style: AppTypography.body(),
+                style: AppTypography.body(color: AppColors.textPrimary),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -164,11 +185,11 @@ class OpportunityResultsScreen extends ConsumerWidget {
     return Row(
       children: [
         Icon(icon, size: 14, color: AppColors.textSecondary),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         Expanded(
           child: Text(
             text,
-            style: AppTypography.caption(),
+            style: AppTypography.caption(color: AppColors.textSecondary),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

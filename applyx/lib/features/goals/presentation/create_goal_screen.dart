@@ -7,18 +7,13 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/glass_card.dart';
+import '../../../core/widgets/organic_background.dart';
 import '../../../core/network/api_exception.dart';
 import '../domain/goal.dart';
 import 'providers/goal_provider.dart';
 import '../../agent_runs/presentation/providers/agent_provider.dart';
 
-/// Create Goal screen.
-///
-/// design.md § 6.5:
-/// Hero copy: "What are you trying to achieve?"
-/// Input: large text field.
-/// Examples as chips.
-/// CTA: "Start Agent"
 class CreateGoalScreen extends ConsumerStatefulWidget {
   const CreateGoalScreen({super.key});
 
@@ -28,6 +23,7 @@ class CreateGoalScreen extends ConsumerStatefulWidget {
 
 class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
   final _goalController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
   bool _isLoading = false;
 
   static const List<String> _exampleChips = [
@@ -38,7 +34,17 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Auto focus the input to make it feel conversational immediately
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) _focusNode.requestFocus();
+    });
+  }
+
+  @override
   void dispose() {
+    _focusNode.dispose();
     _goalController.dispose();
     super.dispose();
   }
@@ -50,6 +56,7 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
     setState(() {
       _isLoading = true;
     });
+    _focusNode.unfocus();
 
     try {
       final repository = ref.read(goalRepositoryProvider);
@@ -61,14 +68,12 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
 
       final goal = await repository.createGoal(request);
       
-      // Invalidate the active goal provider so it refetches the newly created active goal
       ref.invalidate(activeGoalProvider);
 
-      // Start the agent run
       await ref.read(agentRunProvider.notifier).startRun(goal.id);
 
       if (mounted) {
-        context.push(AppRoutes.agentActivity);
+        context.pushReplacement(AppRoutes.agentActivity);
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -79,7 +84,7 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('An unexpected error occurred.')),
+          const SnackBar(content: Text('An unexpected error occurred.')),
         );
       }
     } finally {
@@ -102,81 +107,136 @@ class _CreateGoalScreenState extends ConsumerState<CreateGoalScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('New Goal'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.close, color: AppColors.textPrimary),
           onPressed: _isLoading ? null : () => context.pop(),
         ),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.pagePadding,
-          ),
+      extendBodyBehindAppBar: true,
+      body: OrganicBackground(
+        child: SafeArea(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: AppSpacing.xxl),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.pagePadding,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: AppSpacing.xxl),
+                      
+                      Row(
+                        children: [
+                          Icon(Icons.auto_awesome, color: AppColors.primary, size: 28),
+                          const SizedBox(width: AppSpacing.md),
+                          Text(
+                            'New Goal',
+                            style: AppTypography.h3(color: AppColors.primary),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      
+                      Text(
+                        'What are you\ntrying to achieve?',
+                        style: AppTypography.h1(color: AppColors.textPrimary).copyWith(fontSize: 36),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'Give your agent a clear directive.',
+                        style: AppTypography.body(color: AppColors.textSecondary),
+                      ),
 
-              Text(
-                'What are you\ntrying to achieve?',
-                style: AppTypography.h1(),
-              ),
+                      const SizedBox(height: AppSpacing.xxl),
 
-              const SizedBox(height: AppSpacing.sm),
+                      // Conversational input using GlassCard
+                      GlassCard(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        child: TextField(
+                          controller: _goalController,
+                          focusNode: _focusNode,
+                          maxLines: 5,
+                          minLines: 2,
+                          style: AppTypography.body(color: AppColors.textPrimary).copyWith(fontSize: 20, height: 1.4),
+                          onChanged: (_) => setState(() {}),
+                          enabled: !_isLoading,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _onStartAgent(),
+                          decoration: InputDecoration(
+                            hintText: 'e.g. Find paid remote Flutter internships suitable for a final-year student...',
+                            hintStyle: AppTypography.body(color: AppColors.textSecondary.withValues(alpha: 0.5)).copyWith(fontSize: 20, height: 1.4),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            isDense: true,
+                          ),
+                        ),
+                      ),
 
-              Text(
-                'Describe your goal in your own words.',
-                style: AppTypography.bodySmall(),
-              ),
+                      const SizedBox(height: AppSpacing.xxl),
 
-              const SizedBox(height: AppSpacing.xl),
-
-              // Goal input
-              TextField(
-                controller: _goalController,
-                maxLines: 4,
-                style: AppTypography.body(),
-                onChanged: (_) => setState(() {}),
-                enabled: !_isLoading,
-                decoration: const InputDecoration(
-                  hintText:
-                      'e.g. Find paid remote Flutter internships suitable for a final-year CSE student.',
-                  alignLabelWithHint: true,
-                ),
-              ),
-
-              const SizedBox(height: AppSpacing.xl),
-
-              // Example chips
-              Text('Try an example', style: AppTypography.label()),
-              const SizedBox(height: AppSpacing.md),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: _exampleChips.map((chip) {
-                  return ActionChip(
-                    label: Text(chip),
-                    onPressed: _isLoading ? null : () => _onChipTap(chip),
-                  );
-                }).toList(),
-              ),
-
-              const Spacer(),
-
-              // CTA
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.section),
-                child: AppPrimaryButton(
-                  label: _isLoading ? 'Starting...' : 'Start Agent',
-                  icon: _isLoading ? Icons.hourglass_empty : Icons.auto_awesome,
-                  onPressed: _goalController.text.trim().isEmpty || _isLoading
-                      ? null
-                      : _onStartAgent,
+                      // Example chips
+                      Text('Suggestions', style: AppTypography.label(color: AppColors.textSecondary)),
+                      const SizedBox(height: AppSpacing.md),
+                      Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.sm,
+                        children: _exampleChips.map((chip) {
+                          return _SuggestionChip(
+                            label: chip,
+                            onTap: _isLoading ? null : () => _onChipTap(chip),
+                          );
+                        }).toList(),
+                      ),
+                      
+                      const SizedBox(height: 100), // FAB padding
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.pagePadding),
+        child: AppPrimaryButton(
+          label: _isLoading ? 'Starting...' : 'Start Agent',
+          icon: _isLoading ? Icons.hourglass_empty : Icons.auto_awesome,
+          onPressed: _goalController.text.trim().isEmpty || _isLoading
+              ? null
+              : _onStartAgent,
+        ),
+      ),
+    );
+  }
+}
+
+class _SuggestionChip extends StatelessWidget {
+  const _SuggestionChip({required this.label, this.onTap});
+
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.white.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.white.withValues(alpha: 0.8)),
+        ),
+        child: Text(
+          label,
+          style: AppTypography.bodySmall(color: AppColors.textPrimary),
         ),
       ),
     );
